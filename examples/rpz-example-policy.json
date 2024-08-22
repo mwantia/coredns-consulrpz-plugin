@@ -1,0 +1,56 @@
+{
+    "name": "RPZ Example",
+    "version": "1.0",
+    "priority": 0,
+    "rules": [
+      {
+        "triggers": [
+          {
+            "type": "domain",
+            "value": ["malicious-site.com"]
+          }
+        ],
+        "actions": [
+          {
+            "type": "deny"
+          }
+        ]
+      },
+      {
+        "triggers": [
+          {
+            "type": "domain",
+            "value": ["phishing-attempt.com"]
+          }
+        ],
+        "actions": [
+          {
+            "type": "record",
+            "value": {
+              "ttl": 3600,
+              "records": [
+                {
+                  "type": "A",
+                  "value": ["10.30.10.203"]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "triggers": [
+          {
+            "type": "domain",
+            "value": [".*-site.com"]
+          }
+        ],
+        "actions": [
+          {
+            "type": "rcode",
+            "value": "NXDOMAIN"
+          }
+        ]
+      }
+    ]
+  }
