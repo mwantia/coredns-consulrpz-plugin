@@ -6,15 +6,18 @@ import (
 	"io"
 )
 
+const CurrentPolicyVersion = "1.0"
+const DefaultPolicyPriority = 1000
+
 type Policy struct {
 	Name     string       `json:"name"`
 	Version  string       `json:"version"`
-	Priority int          `json:"priority,omitempty"`
+	Priority *int         `json:"priority,omitempty"`
 	Rules    []PolicyRule `json:"rules"`
 }
 
 type PolicyRule struct {
-	Priority int           `json:"priority,omitempty"`
+	Priority *int          `json:"priority,omitempty"`
 	Triggers []RuleTrigger `json:"triggers"`
 	Actions  []RuleAction  `json:"actions"`
 }
@@ -34,7 +37,7 @@ func (p *Policy) ValidatePolicy() bool {
 		return false
 	}
 
-	if p.Version != "1.0" {
+	if p.Version != CurrentPolicyVersion {
 		return false
 	}
 
@@ -67,7 +70,7 @@ func ParsePolicyFile(reader io.Reader) (*Policy, error) {
 	}
 
 	if !policy.ValidatePolicy() {
-		return nil, fmt.Errorf("unable to validate")
+		return nil, fmt.Errorf("unable to validate policy")
 	}
 
 	return &policy, nil

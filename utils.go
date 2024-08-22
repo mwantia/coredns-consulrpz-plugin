@@ -26,9 +26,23 @@ func PrepareResponseReply(r *dns.Msg, recursionAvailable bool) *dns.Msg {
 	return m
 }
 
+func GetPriority(p *int) int {
+	if p == nil {
+		return DefaultPolicyPriority
+	}
+	return *p
+}
+
 func SortPolicies(policies []Policy) {
 	sort.Slice(policies, func(i, j int) bool {
-		return policies[i].Priority < policies[j].Priority
+		ipriority := GetPriority(policies[i].Priority)
+		jpriority := GetPriority(policies[j].Priority)
+
+		if ipriority != jpriority {
+			return ipriority < jpriority
+		}
+
+		return len(policies[i].Rules) < len(policies[j].Rules)
 	})
 	for _, policy := range policies {
 		SortPolicyRules(policy.Rules)
@@ -37,7 +51,14 @@ func SortPolicies(policies []Policy) {
 
 func SortPolicyRules(rules []PolicyRule) {
 	sort.Slice(rules, func(i, j int) bool {
-		return rules[i].Priority < rules[j].Priority
+		ipriority := GetPriority(rules[i].Priority)
+		jpriority := GetPriority(rules[j].Priority)
+
+		if ipriority != jpriority {
+			return ipriority < jpriority
+		}
+
+		return len(rules[i].Triggers) < len(rules[j].Triggers)
 	})
 }
 
