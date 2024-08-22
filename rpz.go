@@ -107,6 +107,14 @@ func (p RpzPlugin) HandlePolicyRule(state request.Request, ctx context.Context, 
 			if err != nil {
 				return nil, err
 			}
+
+		case "cidr":
+			match, err := triggers.MatchCidrTrigger(state, trigger.Value)
+			globalmatch = match
+
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		if globalmatch {
