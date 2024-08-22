@@ -1,4 +1,4 @@
-# CoreDNS Policy Plugin
+# CoreDNS RPZ Plugin
 
 > [!IMPORTANT]
 > This plugin is still actively being worked on. \

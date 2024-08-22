@@ -14,6 +14,7 @@ func init() {
 func setup(c *caddy.Controller) error {
 	c.OnStartup(func() error {
 		prometheus.MustRegister(metricsRpzRequestDurationSeconds)
+		prometheus.MustRegister(metricsQueryRequestsTotal)
 		return nil
 	})
 

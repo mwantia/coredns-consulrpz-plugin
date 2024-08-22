@@ -1,7 +1,10 @@
 package rpz
 
 import (
+	"strings"
+
 	"github.com/coredns/coredns/plugin"
+	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -16,5 +19,20 @@ var metricsRpzRequestDurationSeconds = prometheus.NewHistogramVec(prometheus.His
 }, []string{"status"})
 
 func IncrementMetricsRpzRequestDurationSeconds(status string, duration float64) {
-	metricsRpzRequestDurationSeconds.WithLabelValues(status).Observe(duration)
+	s := strings.ToUpper(status)
+	metricsRpzRequestDurationSeconds.WithLabelValues(s).Observe(duration)
+}
+
+var metricsQueryRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Namespace: plugin.Namespace,
+	Subsystem: metricsSubsystem,
+	Name:      "query_requests_total",
+	Help:      "Count the amount of queries received as request by the plugin.",
+}, []string{"status", "policy", "type"})
+
+func IncrementMetricsQueryRequestsTotal(status, policy string, qtype uint16) {
+	t := dns.TypeToString[qtype]
+	s := strings.ToUpper(status)
+	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
+	metricsQueryRequestsTotal.WithLabelValues(s, p, t).Inc()
 }

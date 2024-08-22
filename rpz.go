@@ -17,6 +17,8 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	state := request.Request{W: w, Req: r}
 	start := time.Now()
 
+	qtype := state.QType()
+
 	for _, policy := range p.Config.Policies {
 		response, err := p.HandlePolicy(state, ctx, r, policy)
 		if err != nil {
@@ -27,12 +29,14 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 			if response.Fallthrough {
 				duration := time.Since(start).Seconds()
 				IncrementMetricsRpzRequestDurationSeconds("FALLTHROUGH", duration)
+				IncrementMetricsQueryRequestsTotal("FALLTHROUGH", policy.Name, qtype)
 
 				return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 			}
 			if response.Deny {
 				duration := time.Since(start).Seconds()
 				IncrementMetricsRpzRequestDurationSeconds("DENY", duration)
+				IncrementMetricsQueryRequestsTotal("DENY", policy.Name, qtype)
 
 				return HandleDenyAll(state)
 			}
@@ -56,17 +60,25 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 
 			if err := w.WriteMsg(msg); err != nil {
 				logging.Log.Errorf("Unable to send response: %s", err)
+
+				duration := time.Since(start).Seconds()
+				IncrementMetricsRpzRequestDurationSeconds("ERROR", duration)
+				IncrementMetricsQueryRequestsTotal("ERROR", policy.Name, qtype)
+
 				return dns.RcodeServerFailure, err
 			}
 
 			duration := time.Since(start).Seconds()
 			IncrementMetricsRpzRequestDurationSeconds("SUCCESS", duration)
+			IncrementMetricsQueryRequestsTotal("SUCCESS", policy.Name, qtype)
+
 			return msg.Rcode, nil
 		}
 	}
 	duration := time.Since(start).Seconds()
 	IncrementMetricsRpzRequestDurationSeconds("NOMATCH", duration)
-	// Pass onto the next plugin (fallthrough) by default
+	IncrementMetricsQueryRequestsTotal("NOMATCH", ".", qtype)
+
 	return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 }
 
