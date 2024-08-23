@@ -142,9 +142,13 @@ func (c *RpzConfig) ParseConsulKVPair(kv *api.KVPair) error {
 func (c *RpzConfig) UpdateNamedPolicies(policy *Policy) error {
 	if policy != nil {
 		for i := range c.Policies {
-			if c.Policies[i].Name == policy.Name {
+			// For a policy to get updated, the name must match and the hash must change
+			if c.Policies[i].Name == policy.Name && c.Policies[i].Hash != policy.Hash {
+
 				c.Policies[i].Priority = policy.Priority
 				c.Policies[i].Rules = policy.Rules
+				c.Policies[i].Hash = policy.Hash
+
 				logging.Log.Debugf("Policy '%s' updated", policy.Name)
 				return nil
 			}

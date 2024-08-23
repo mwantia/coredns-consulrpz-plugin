@@ -28,15 +28,17 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		if response != nil {
 			if response.Fallthrough {
 				duration := time.Since(start).Seconds()
-				IncrementMetricsRpzRequestDurationSeconds("FALLTHROUGH", duration)
-				IncrementMetricsQueryRequestsTotal("FALLTHROUGH", policy.Name, qtype)
+
+				MetricRequestDurationSeconds(StatusFallthrough, duration)
+				MetricQueryRequestsTotal(StatusFallthrough, policy.Name, qtype)
 
 				return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 			}
 			if response.Deny {
 				duration := time.Since(start).Seconds()
-				IncrementMetricsRpzRequestDurationSeconds("DENY", duration)
-				IncrementMetricsQueryRequestsTotal("DENY", policy.Name, qtype)
+
+				MetricRequestDurationSeconds(StatusDeny, duration)
+				MetricQueryRequestsTotal(StatusDeny, policy.Name, qtype)
 
 				return HandleDenyAll(state)
 			}
@@ -62,22 +64,25 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 				logging.Log.Errorf("Unable to send response: %s", err)
 
 				duration := time.Since(start).Seconds()
-				IncrementMetricsRpzRequestDurationSeconds("ERROR", duration)
-				IncrementMetricsQueryRequestsTotal("ERROR", policy.Name, qtype)
+
+				MetricRequestDurationSeconds(StatusError, duration)
+				MetricQueryRequestsTotal(StatusError, policy.Name, qtype)
 
 				return dns.RcodeServerFailure, err
 			}
 
 			duration := time.Since(start).Seconds()
-			IncrementMetricsRpzRequestDurationSeconds("SUCCESS", duration)
-			IncrementMetricsQueryRequestsTotal("SUCCESS", policy.Name, qtype)
+
+			MetricRequestDurationSeconds(StatusSuccess, duration)
+			MetricQueryRequestsTotal(StatusSuccess, policy.Name, qtype)
 
 			return msg.Rcode, nil
 		}
 	}
 	duration := time.Since(start).Seconds()
-	IncrementMetricsRpzRequestDurationSeconds("NOMATCH", duration)
-	IncrementMetricsQueryRequestsTotal("NOMATCH", ".", qtype)
+
+	MetricRequestDurationSeconds(StatusNoMatch, duration)
+	MetricQueryRequestsTotal(StatusNoMatch, ".", qtype)
 
 	return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 }
