@@ -6,49 +6,26 @@
       {
         "triggers": [
           {
-            "type": "domain",
-            "value": ["malicious-site.com"]
-          }
-        ],
-        "actions": [
+            "type": "name",
+            "value": ["example.com"]
+          },
           {
-            "type": "deny"
-          }
-        ]
-      },
-      {
-        "triggers": [
-          {
-            "type": "domain",
-            "value": ["phishing-attempt.com"]
+            "type": "type",
+            "value": ["A", "AAAA"]
           }
         ],
         "actions": [
           {
             "type": "record",
             "value": {
-              "ttl": 3600,
+              "ttl": 0,
               "records": [
                 {
                   "type": "A",
-                  "value": ["10.30.10.203"]
+                  "value": ["1.2.3.4"]
                 }
               ]
             }
-          }
-        ]
-      },
-      {
-        "triggers": [
-          {
-            "type": "domain",
-            "value": [".*-site.com"]
-          }
-        ],
-        "actions": [
-          {
-            "type": "rcode",
-            "value": "NXDOMAIN"
           }
         ]
       }

@@ -13,7 +13,7 @@ var (
 	RegexCompileMutex sync.RWMutex
 )
 
-func MatchDomainTrigger(state request.Request, value json.RawMessage) (bool, error) {
+func MatchQNameTrigger(state request.Request, value json.RawMessage) (bool, error) {
 	var domains []string
 	if err := json.Unmarshal(value, &domains); err != nil {
 		return false, err

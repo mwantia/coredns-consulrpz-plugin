@@ -2,6 +2,7 @@ package rpz
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/coredns/coredns/plugin"
@@ -82,7 +83,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	duration := time.Since(start).Seconds()
 
 	MetricRequestDurationSeconds(StatusNoMatch, duration)
-	MetricQueryRequestsTotal(StatusNoMatch, ".", qtype)
+	MetricQueryRequestsTotal(StatusNoMatch, "", qtype)
 
 	return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 }
@@ -104,9 +105,23 @@ func (p RpzPlugin) HandlePolicyRule(state request.Request, ctx context.Context, 
 
 	for _, trigger := range rule.Triggers {
 		globalmatch := false
-		switch trigger.Type {
-		case "domain":
-			match, err := triggers.MatchDomainTrigger(state, trigger.Value)
+		t := strings.ToLower(trigger.Type)
+
+		if t == "domain" {
+			t = "name"
+		}
+
+		switch t {
+		case "name":
+			match, err := triggers.MatchQNameTrigger(state, trigger.Value)
+			globalmatch = match
+
+			if err != nil {
+				return nil, err
+			}
+
+		case "type":
+			match, err := triggers.MatchQTypeTrigger(state, trigger.Value)
 			globalmatch = match
 
 			if err != nil {

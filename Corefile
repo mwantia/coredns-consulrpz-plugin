@@ -1,8 +1,0 @@
-. {
-  log
-  errors
-  debug
-  rpz {
-    file examples/rpz-example-policy.json
-  }
-}
