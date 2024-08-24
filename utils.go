@@ -9,18 +9,18 @@ import (
 	"github.com/miekg/dns"
 )
 
-func PrepareResponseRcode(r *dns.Msg, rcode int, recursionAvailable bool) *dns.Msg {
+func PrepareResponseRcode(request *dns.Msg, rcode int, recursionAvailable bool) *dns.Msg {
 	m := new(dns.Msg)
-	m.SetRcode(r, rcode)
+	m.SetRcode(request, rcode)
 	m.Authoritative = true
 	m.RecursionAvailable = recursionAvailable
 
 	return m
 }
 
-func PrepareResponseReply(r *dns.Msg, recursionAvailable bool) *dns.Msg {
+func PrepareResponseReply(request *dns.Msg, recursionAvailable bool) *dns.Msg {
 	m := new(dns.Msg)
-	m.SetReply(r)
+	m.SetReply(request)
 	m.Authoritative = true
 	m.RecursionAvailable = recursionAvailable
 

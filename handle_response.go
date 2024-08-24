@@ -26,28 +26,9 @@ type ResponseRecord struct {
 
 func HandleResponse(state request.Request, ctx context.Context, r *dns.Msg, rule PolicyRule) (*Response, error) {
 	response := &Response{}
-
 	for _, action := range rule.Actions {
-		switch action.Type {
-		case "deny":
-			return &Response{
-				Deny: true,
-			}, nil
-
-		case "fallthrough":
-			return &Response{
-				Fallthrough: true,
-			}, nil
-
-		case "rcode":
-			if err := response.AppendRcode(state, action); err != nil {
-				return nil, err
-			}
-
-		case "record":
-			if err := response.AppendRecord(state, action); err != nil {
-				return nil, err
-			}
+		if handled, err := HandleActionResponse(state, action, response); handled || err != nil {
+			return response, err
 		}
 	}
 

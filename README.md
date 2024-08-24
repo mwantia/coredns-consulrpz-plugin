@@ -48,7 +48,7 @@ rpz {
 - `file`: Specifies a json-file used for storing RPZ policies 
 - `consul`: Specifies the Consul KV prefix for storing RPZ policies
 
-## Consul KV Configuration
+## RPZ Configuration
 
 These custom RPZ policies are written in JSON. Each policy should be a object with the following structure:
 
@@ -78,7 +78,7 @@ These custom RPZ policies are written in JSON. Each policy should be a object wi
 ### Policy structure:
 - `name`: Name of the policy (string)
 - `version`: Version of the policy format (string, must be "1.0")
-- `priority`: Priority of the policy (integer, lower values have higher priority)
+- `priority`: Priority of the policy (integer, lower values have higher priority; Default `1000`)
 - `rules`: Array of policy rules
 
 ### Rule structure:
@@ -89,15 +89,23 @@ These custom RPZ policies are written in JSON. Each policy should be a object wi
 
 Currently, the plugin supports the following trigger types:
 
-1. `domain`: Matches domain names
+1. `name`: Matches domain names
    ```json
    {
-     "type": "domain",
+     "type": "name",
      "value": ["example.com", ".*-site.com"]
    }
    ```
 
-1. `cidr`: Matches IP-Adress ranges
+2. `type`: Matches query types
+   ```json
+   {
+     "type": "type",
+     "value": ["A", "AAAA"]
+   }
+   ```
+
+3. `cidr`: Matches IP-Adress ranges
    ```json
    {
      "type": "cidr",
@@ -140,7 +148,7 @@ The plugin supports the following action types:
        "records": [
          {
            "type": "A",
-           "value": ["10.30.10.203"]
+           "value": ["0.0.0.0"]
          }
        ]
      }

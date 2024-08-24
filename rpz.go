@@ -2,14 +2,12 @@ package rpz
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 	"github.com/mwantia/coredns-rpz-plugin/logging"
-	"github.com/mwantia/coredns-rpz-plugin/triggers"
 )
 
 func (p RpzPlugin) Name() string { return "rpz" }
@@ -20,65 +18,64 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 
 	qtype := state.QType()
 
-	for _, policy := range p.Config.Policies {
-		response, err := p.HandlePolicy(state, ctx, r, policy)
-		if err != nil {
-			logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
+	policy, response, err := p.HandlePoliciesParallel(state, ctx, r)
+
+	if err != nil {
+		logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
+	}
+
+	if policy != nil && response != nil {
+		if response.Fallthrough {
+			duration := time.Since(start).Seconds()
+
+			MetricRequestDurationSeconds(StatusFallthrough, duration)
+			MetricQueryRequestsTotal(StatusFallthrough, policy.Name, qtype)
+
+			return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
+		}
+		if response.Deny {
+			duration := time.Since(start).Seconds()
+
+			MetricRequestDurationSeconds(StatusDeny, duration)
+			MetricQueryRequestsTotal(StatusDeny, policy.Name, qtype)
+
+			return HandleDenyAll(state)
 		}
 
-		if response != nil {
-			if response.Fallthrough {
-				duration := time.Since(start).Seconds()
+		msg := PrepareResponseReply(state.Req, true)
+		if response.Rcode != nil {
+			msg.Rcode = int(*response.Rcode)
+		}
+		msg.SetReply(r)
+		msg.Answer = response.Answers
 
-				MetricRequestDurationSeconds(StatusFallthrough, duration)
-				MetricQueryRequestsTotal(StatusFallthrough, policy.Name, qtype)
-
-				return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
-			}
-			if response.Deny {
-				duration := time.Since(start).Seconds()
-
-				MetricRequestDurationSeconds(StatusDeny, duration)
-				MetricQueryRequestsTotal(StatusDeny, policy.Name, qtype)
-
-				return HandleDenyAll(state)
-			}
-
-			msg := PrepareResponseReply(state.Req, true)
-			if response.Rcode != nil {
-				msg.Rcode = int(*response.Rcode)
-			}
-			msg.SetReply(r)
-			msg.Answer = response.Answers
-
-			if response.Rcode != nil {
-				msg.Rcode = int(*response.Rcode)
+		if response.Rcode != nil {
+			msg.Rcode = int(*response.Rcode)
+		} else {
+			if len(msg.Answer) > 0 {
+				msg.Rcode = dns.RcodeSuccess
 			} else {
-				if len(msg.Answer) > 0 {
-					msg.Rcode = dns.RcodeSuccess
-				} else {
-					msg.Rcode = dns.RcodeNameError
-				}
+				msg.Rcode = dns.RcodeNameError
 			}
+		}
 
-			if err := w.WriteMsg(msg); err != nil {
-				logging.Log.Errorf("Unable to send response: %s", err)
-
-				duration := time.Since(start).Seconds()
-
-				MetricRequestDurationSeconds(StatusError, duration)
-				MetricQueryRequestsTotal(StatusError, policy.Name, qtype)
-
-				return dns.RcodeServerFailure, err
-			}
+		if err := w.WriteMsg(msg); err != nil {
+			logging.Log.Errorf("Unable to send response: %s", err)
 
 			duration := time.Since(start).Seconds()
 
-			MetricRequestDurationSeconds(StatusSuccess, duration)
-			MetricQueryRequestsTotal(StatusSuccess, policy.Name, qtype)
+			MetricRequestDurationSeconds(StatusError, duration)
+			MetricQueryRequestsTotal(StatusError, policy.Name, qtype)
 
-			return msg.Rcode, nil
+			return dns.RcodeServerFailure, err
 		}
+
+		duration := time.Since(start).Seconds()
+
+		MetricRequestDurationSeconds(StatusSuccess, duration)
+		MetricQueryRequestsTotal(StatusSuccess, policy.Name, qtype)
+
+		return msg.Rcode, nil
 	}
 	duration := time.Since(start).Seconds()
 
@@ -86,63 +83,4 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	MetricQueryRequestsTotal(StatusNoMatch, "", qtype)
 
 	return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
-}
-
-func (p RpzPlugin) HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy Policy) (*Response, error) {
-	logging.Log.Debugf("Handling policy named '%s'", policy.Name)
-
-	for _, rule := range policy.Rules {
-		if response, err := p.HandlePolicyRule(state, ctx, r, rule); response != nil || err != nil {
-			return response, err
-		}
-	}
-
-	return nil, nil
-}
-
-func (p RpzPlugin) HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, rule PolicyRule) (*Response, error) {
-	logging.Log.Debugf("Handling policy rule with '%v' triggers and '%v' actions", len(rule.Triggers), len(rule.Actions))
-
-	for _, trigger := range rule.Triggers {
-		globalmatch := false
-		t := strings.ToLower(trigger.Type)
-
-		if t == "domain" {
-			t = "name"
-		}
-
-		switch t {
-		case "name":
-			match, err := triggers.MatchQNameTrigger(state, trigger.Value)
-			globalmatch = match
-
-			if err != nil {
-				return nil, err
-			}
-
-		case "type":
-			match, err := triggers.MatchQTypeTrigger(state, trigger.Value)
-			globalmatch = match
-
-			if err != nil {
-				return nil, err
-			}
-
-		case "cidr":
-			match, err := triggers.MatchCidrTrigger(state, trigger.Value)
-			globalmatch = match
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if globalmatch {
-			if response, err := HandleResponse(state, ctx, r, rule); response != nil || err != nil {
-				return response, err
-			}
-		}
-	}
-
-	return nil, nil
 }

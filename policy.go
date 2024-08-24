@@ -110,14 +110,14 @@ func SortPolicyRules(rules []PolicyRule) {
 }
 
 func (p *Policy) GetPriority() int {
-	if p == nil {
+	if p == nil || p.Priority == nil {
 		return DefaultPolicyPriority
 	}
 	return *p.Priority
 }
 
 func (r *PolicyRule) GetPriority() int {
-	if r == nil {
+	if r == nil || r.Priority == nil {
 		return DefaultPolicyPriority
 	}
 	return *r.Priority

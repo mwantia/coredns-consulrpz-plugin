@@ -21,7 +21,7 @@ func TestRPZ(tst *testing.T) {
 
 	c := caddy.NewTestController("dns", `
 		rpz {
-		  consul dns/policies
+		  policy build/examples/rpz-example-policy.json
 		}
 	`)
 
@@ -31,7 +31,7 @@ func TestRPZ(tst *testing.T) {
 	}
 
 	tests := []string{
-		"phishing-attempt.com",
+		"example.com",
 	}
 
 	time.Sleep(1000)
@@ -40,7 +40,7 @@ func TestRPZ(tst *testing.T) {
 
 func RunTests(tst *testing.T, plug *RpzPlugin, tests []string) {
 	ctx := context.TODO()
-	match := "10.30.10.203"
+	match := "1.2.3.4"
 
 	for _, tc := range tests {
 		tst.Run("Domain: "+tc, func(t *testing.T) {
@@ -61,11 +61,13 @@ func RunTests(tst *testing.T, plug *RpzPlugin, tests []string) {
 
 			answer := rec.Msg.Answer[0]
 			address := answer.(*dns.A).A.String()
+
+			logging.Log.Infof("Received code '%v', no errors", code)
+			logging.Log.Infof("Answer to match '%s' with expected answer '%s'", address, match)
+
 			if address != match {
 				tst.Errorf("Expected '%s', but received '%s'", match, address)
 			}
-
-			logging.Log.Infof("Received code '%v', no errors", code)
 		})
 	}
 }
