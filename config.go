@@ -86,7 +86,7 @@ func CreateConfig(c *caddy.Controller) (*RpzConfig, error) {
 					logging.Log.Warningf("Unable to load consul prefix '%s': %v", args[0], err)
 				}
 
-			case "file":
+			case "policy":
 				for _, a := range args {
 					file, err := os.Open(a)
 					if err != nil {
