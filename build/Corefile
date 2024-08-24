@@ -1,0 +1,8 @@
+. {
+  log
+  errors
+  debug
+  rpz {
+    policy /app/examples/rpz-example-policy.json
+  }
+}
