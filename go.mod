@@ -54,4 +54,5 @@ require (
 	github.com/coredns/coredns v1.11.3
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/hashicorp/consul/api v1.29.2
+	github.com/robfig/cron/v3 v3.0.1
 )

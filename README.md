@@ -45,7 +45,7 @@ rpz {
 
 ### Configuration options:
 
-- `file`: Specifies a json-file used for storing RPZ policies 
+- `policy`: Specifies a json-file used for storing RPZ policies 
 - `consul`: Specifies the Consul KV prefix for storing RPZ policies
 
 ## RPZ Configuration
@@ -89,29 +89,52 @@ These custom RPZ policies are written in JSON. Each policy should be a object wi
 
 Currently, the plugin supports the following trigger types:
 
-1. `name`: Matches domain names
-   ```json
-   {
-     "type": "name",
-     "value": ["example.com", ".*-site.com"]
-   }
-   ```
+1. `type`: Matches query types
+  ```json
+  {
+    "type": "type",
+    "value": ["A", "AAAA"]
+  }
+  ```
 
-2. `type`: Matches query types
-   ```json
-   {
-     "type": "type",
-     "value": ["A", "AAAA"]
-   }
-   ```
+2. `name`: Matches domain names
+  ```json
+  {
+    "type": "name",
+    "value": ["example.com", ".*-site.com"]
+  }
+  ```
 
 3. `cidr`: Matches IP-Adress ranges
-   ```json
-   {
-     "type": "cidr",
-     "value": ["192.168.0.0/16", "192.168.178.1/32", "192.168.0.1"]
-   }
-   ```
+  ```json
+  {
+    "type": "cidr",
+    "value": ["192.168.0.0/16", "192.168.178.1/32", "192.168.0.1"]
+  }
+  ```
+
+4. `time`: Matches time-frames with a start and end
+  ```json
+  {
+    "type": "time",
+    "value": [
+      {
+        "start": "09:00",
+        "end": "17:00"
+      }
+    ]
+  }
+  ```
+
+5. `cron`: Matches time-frames declared as cron
+  ```json
+  {
+    "type": "cron",
+    "value": ["* 9-16 * * 1-5"]
+  }
+  ```
+
+Triggers are handled in the following order: `type`, `cidr`, `name`, `time`, `cron`.
 
 ## Supported Actions
 
@@ -131,10 +154,10 @@ The plugin supports the following action types:
    }
    ```
 
-3. `rcode`: Returns a specific DNS response code
+3. `code`: Returns a specific DNS response code
    ```json
    {
-     "type": "rcode",
+     "type": "code",
      "value": "NXDOMAIN"
    }
    ```
@@ -154,6 +177,8 @@ The plugin supports the following action types:
      }
    }
    ```
+
+Actions are handled in the following order: `deny`, `fallthrough`, `code`, `record`.
 
 ## Metrics
 

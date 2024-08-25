@@ -36,6 +36,16 @@ func HandleTrigger(state request.Request, trigger RuleTrigger) (bool, error) {
 		if handled, err := triggers.MatchQNameTrigger(state, trigger.Value); handled || err != nil {
 			return handled, err
 		}
+
+	case "time":
+		if handled, err := triggers.MatchTimeTrigger(state, trigger.Value); handled || err != nil {
+			return handled, err
+		}
+
+	case "cron":
+		if handled, err := triggers.MatchCronTrigger(state, trigger.Value); handled || err != nil {
+			return handled, err
+		}
 	}
 
 	return false, nil

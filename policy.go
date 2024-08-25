@@ -111,6 +111,12 @@ func SortPolicies(policies []Policy) {
 
 				return ipriority < jpriority
 			})
+			sort.Slice(rule.Actions, func(i, j int) bool {
+				ipriority := rule.Actions[i].GetPriority()
+				jpriority := rule.Actions[j].GetPriority()
+
+				return ipriority < jpriority
+			})
 		}
 	}
 }
@@ -139,6 +145,27 @@ func (t *RuleTrigger) GetPriority() int {
 			return 1
 		case "name":
 			return 2
+		case "time":
+			return 3
+		case "cron":
+			return 4
+		}
+	}
+	return 1000
+}
+
+func (a *RuleAction) GetPriority() int {
+	if a != nil {
+		alias := a.GetAliasType()
+		switch alias {
+		case "deny":
+			return 0
+		case "fallthrough":
+			return 1
+		case "code":
+			return 2
+		case "record":
+			return 3
 		}
 	}
 	return 1000
