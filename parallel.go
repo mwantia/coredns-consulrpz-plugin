@@ -12,11 +12,11 @@ import (
 func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Context, request *dns.Msg) (*Policy, *Response, error) {
 	var wg sync.WaitGroup
 
-	resultChan := make(chan struct {
+	resultChannel := make(chan struct {
 		Policy   *Policy
 		Response *Response
 	}, len(p.Config.Policies))
-	errorChan := make(chan error, len(p.Config.Policies))
+	errorChannel := make(chan error, len(p.Config.Policies))
 
 	for _, policy := range p.Config.Policies {
 		wg.Add(1)
@@ -26,12 +26,12 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 			if err != nil {
 				logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
 
-				errorChan <- err
+				errorChannel <- err
 				return
 			}
 
 			if response != nil {
-				resultChan <- struct {
+				resultChannel <- struct {
 					Policy   *Policy
 					Response *Response
 				}{&pol, response}
@@ -41,16 +41,16 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 
 	go func() {
 		wg.Wait()
-		close(resultChan)
-		close(errorChan)
+		close(resultChannel)
+		close(errorChannel)
 	}()
 
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
-	case err := <-errorChan:
+	case err := <-errorChannel:
 		return nil, nil, err
-	case result := <-resultChan:
+	case result := <-resultChannel:
 		return result.Policy, result.Response, nil
 	}
 }
