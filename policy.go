@@ -91,22 +91,28 @@ func SortPolicies(policies []Policy) {
 
 		return len(policies[i].Rules) < len(policies[j].Rules)
 	})
+
 	for _, policy := range policies {
-		SortPolicyRules(policy.Rules)
-	}
-}
+		sort.Slice(policy.Rules, func(i, j int) bool {
+			ipriority := policy.Rules[i].GetPriority()
+			jpriority := policy.Rules[j].GetPriority()
 
-func SortPolicyRules(rules []PolicyRule) {
-	sort.Slice(rules, func(i, j int) bool {
-		ipriority := rules[i].GetPriority()
-		jpriority := rules[j].GetPriority()
+			if ipriority != jpriority {
+				return ipriority < jpriority
+			}
 
-		if ipriority != jpriority {
-			return ipriority < jpriority
+			return len(policy.Rules[i].Triggers) < len(policy.Rules[j].Triggers)
+		})
+
+		for _, rule := range policy.Rules {
+			sort.Slice(rule.Triggers, func(i, j int) bool {
+				ipriority := rule.Triggers[i].GetPriority()
+				jpriority := rule.Triggers[j].GetPriority()
+
+				return ipriority < jpriority
+			})
 		}
-
-		return len(rules[i].Triggers) < len(rules[j].Triggers)
-	})
+	}
 }
 
 func (p *Policy) GetPriority() int {
@@ -121,4 +127,19 @@ func (r *PolicyRule) GetPriority() int {
 		return DefaultPolicyPriority
 	}
 	return *r.Priority
+}
+
+func (t *RuleTrigger) GetPriority() int {
+	if t != nil {
+		alias := t.GetAliasType()
+		switch alias {
+		case "type":
+			return 0
+		case "cidr":
+			return 1
+		case "name":
+			return 2
+		}
+	}
+	return 1000
 }

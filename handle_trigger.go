@@ -22,11 +22,6 @@ func HandleTrigger(state request.Request, trigger RuleTrigger) (bool, error) {
 	alias := trigger.GetAliasType()
 
 	switch alias {
-	case "name":
-		if handled, err := triggers.MatchQNameTrigger(state, trigger.Value); handled || err != nil {
-			return handled, err
-		}
-
 	case "type":
 		if handled, err := triggers.MatchQTypeTrigger(state, trigger.Value); handled || err != nil {
 			return handled, err
@@ -34,6 +29,11 @@ func HandleTrigger(state request.Request, trigger RuleTrigger) (bool, error) {
 
 	case "cidr":
 		if handled, err := triggers.MatchCidrTrigger(state, trigger.Value); handled || err != nil {
+			return handled, err
+		}
+
+	case "name":
+		if handled, err := triggers.MatchQNameTrigger(state, trigger.Value); handled || err != nil {
 			return handled, err
 		}
 	}
