@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 )
 
@@ -25,6 +26,15 @@ func PrepareResponseReply(request *dns.Msg, recursionAvailable bool) *dns.Msg {
 	m.RecursionAvailable = recursionAvailable
 
 	return m
+}
+
+func WriteExtraPolicyHandle(request *dns.Msg, state request.Request, policy Policy) {
+	qname := dns.Fqdn(state.Name())
+
+	request.Extra = append(request.Extra, &dns.TXT{
+		Hdr: dns.RR_Header{Name: dns.Fqdn(qname), Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 3600},
+		Txt: []string{"Handled by RPZ policy - " + policy.Name},
+	})
 }
 
 func CalculateHash(data []byte) string {

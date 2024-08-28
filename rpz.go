@@ -17,7 +17,6 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	start := time.Now()
 
 	qtype := state.QType()
-
 	policy, response, err := p.HandlePoliciesParallel(state, ctx, r)
 
 	if err != nil {
@@ -31,6 +30,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 			MetricRequestDurationSeconds(StatusFallthrough, duration)
 			MetricQueryRequestsTotal(StatusFallthrough, policy.Name, qtype)
 
+			p.SetMetadataQueryStatus(ctx, StatusFallthrough)
 			return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 		}
 		if response.Deny {
@@ -39,7 +39,8 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 			MetricRequestDurationSeconds(StatusDeny, duration)
 			MetricQueryRequestsTotal(StatusDeny, policy.Name, qtype)
 
-			return HandleDenyAll(state)
+			p.SetMetadataQueryStatus(ctx, StatusDeny)
+			return HandleDenyPolicy(state, *policy)
 		}
 
 		msg := PrepareResponseReply(state.Req, true)
@@ -48,6 +49,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 		msg.SetReply(r)
 		msg.Answer = response.Answers
+		WriteExtraPolicyHandle(msg, state, *policy)
 
 		if response.Rcode != nil {
 			msg.Rcode = int(*response.Rcode)
@@ -67,6 +69,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 			MetricRequestDurationSeconds(StatusError, duration)
 			MetricQueryRequestsTotal(StatusError, policy.Name, qtype)
 
+			p.SetMetadataQueryStatus(ctx, StatusError)
 			return dns.RcodeServerFailure, err
 		}
 
@@ -75,6 +78,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		MetricRequestDurationSeconds(StatusSuccess, duration)
 		MetricQueryRequestsTotal(StatusSuccess, policy.Name, qtype)
 
+		p.SetMetadataQueryStatus(ctx, StatusSuccess)
 		return msg.Rcode, nil
 	}
 	duration := time.Since(start).Seconds()
@@ -82,5 +86,6 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	MetricRequestDurationSeconds(StatusNoMatch, duration)
 	MetricQueryRequestsTotal(StatusNoMatch, "", qtype)
 
+	// No need to set metadata, since the default is set to 'NOMATCH'?
 	return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 }
