@@ -71,7 +71,7 @@ func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy
 	logging.Log.Debugf("Handling policy named '%s'", policy.Name)
 
 	for _, rule := range policy.Rules {
-		if response, err := HandlePolicyRule(state, ctx, r, rule); response != nil || err != nil {
+		if response, err := HandlePolicyRule(state, ctx, r, policy, rule); response != nil || err != nil {
 			return response, err
 		}
 	}
@@ -79,11 +79,14 @@ func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy
 	return nil, nil
 }
 
-func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, rule PolicyRule) (*Response, error) {
+func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, policy Policy, rule PolicyRule) (*Response, error) {
 	for _, trigger := range rule.Triggers {
 		if handled, err := HandleTrigger(state, trigger); !handled || err != nil {
 			return nil, err
 		}
+
+		alias := trigger.GetAliasType()
+		MetricTriggerMatchCount(policy.Name, alias)
 	}
 
 	if response, err := HandleResponse(state, ctx, r, rule); response != nil || err != nil {

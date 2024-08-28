@@ -9,10 +9,11 @@ import (
 )
 
 const MetadataRpzQueryStatus = "rpz/query-status"
+const DefaultQueryStatus = QueryStatusNoMatch
 
 func (p RpzPlugin) Metadata(ctx context.Context, state request.Request) context.Context {
 	metadata.SetValueFunc(ctx, MetadataRpzQueryStatus, func() string {
-		return StatusNoMatch
+		return DefaultQueryStatus
 	})
 	return ctx
 }

@@ -23,32 +23,22 @@ func HandleTrigger(state request.Request, trigger RuleTrigger) (bool, error) {
 
 	switch alias {
 	case "type":
-		if handled, err := triggers.MatchQTypeTrigger(state, trigger.Value); handled || err != nil {
-			return handled, err
-		}
+		return triggers.MatchQTypeTrigger(state, trigger.Value)
 
 	case "cidr":
-		if handled, err := triggers.MatchCidrTrigger(state, trigger.Value); handled || err != nil {
-			return handled, err
-		}
+		return triggers.MatchCidrTrigger(state, trigger.Value)
 
 	case "name":
-		if handled, err := triggers.MatchQNameTrigger(state, trigger.Value); handled || err != nil {
-			return handled, err
-		}
+		return triggers.MatchQNameTrigger(state, trigger.Value)
 
 	case "time":
-		if handled, err := triggers.MatchTimeTrigger(state, trigger.Value); handled || err != nil {
-			return handled, err
-		}
+		return triggers.MatchTimeTrigger(state, trigger.Value)
 
 	case "cron":
-		if handled, err := triggers.MatchCronTrigger(state, trigger.Value); handled || err != nil {
-			return handled, err
-		}
+		return triggers.MatchCronTrigger(state, trigger.Value)
 	}
 
-	return false, nil
+	return true, nil // Return true, so any type that doesn't match will be "skipped"
 }
 
 func (trigger RuleTrigger) GetAliasType() string {
