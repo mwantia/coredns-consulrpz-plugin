@@ -1,6 +1,7 @@
 package triggers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -9,7 +10,7 @@ import (
 	"github.com/mwantia/coredns-rpz-plugin/logging"
 )
 
-func MatchCidrTrigger(state request.Request, value json.RawMessage) (bool, error) {
+func MatchCidrTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
 	var cidrs []string
 	if err := json.Unmarshal(value, &cidrs); err != nil {
 		return false, err
@@ -22,19 +23,24 @@ func MatchCidrTrigger(state request.Request, value json.RawMessage) (bool, error
 	}
 
 	for _, cidr := range cidrs {
-		logging.Log.Debugf("Checking cidr '%s' with client '%s'", cidr, clientIP)
-		// Simplest check and should always be tried first
-		if ip == cidr {
-			return true, nil
-		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		default:
+			logging.Log.Debugf("Checking cidr '%s' with client '%s'", cidr, clientIP)
+			// Simplest check and should always be tried first
+			if ip == cidr {
+				return true, nil
+			}
 
-		_, ipnet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			return false, nil // Ignore parse errors
-		}
+			_, ipnet, err := net.ParseCIDR(cidr)
+			if err != nil {
+				return false, nil // Ignore parse errors
+			}
 
-		if ipnet.Contains(clientIP) {
-			return true, nil
+			if ipnet.Contains(clientIP) {
+				return true, nil
+			}
 		}
 	}
 

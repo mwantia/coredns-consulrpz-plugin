@@ -1,6 +1,7 @@
 package triggers
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -12,7 +13,7 @@ type TimeTrigger struct {
 	End   string `json:"end"`
 }
 
-func MatchTimeTrigger(state request.Request, value json.RawMessage) (bool, error) {
+func MatchTimeTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
 	now := time.Now()
 
 	var tts []TimeTrigger
@@ -21,26 +22,31 @@ func MatchTimeTrigger(state request.Request, value json.RawMessage) (bool, error
 	}
 
 	for _, tt := range tts {
-		start, err := time.Parse("15:04", tt.Start)
-		if err != nil {
-			return false, err
-		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		default:
+			start, err := time.Parse("15:04", tt.Start)
+			if err != nil {
+				return false, err
+			}
 
-		end, err := time.Parse("15:04", tt.End)
-		if err != nil {
-			return false, err
-		}
+			end, err := time.Parse("15:04", tt.End)
+			if err != nil {
+				return false, err
+			}
 
-		year, month, day := now.Date()
-		start = time.Date(year, month, day, start.Hour(), start.Minute(), 0, 0, now.Location())
-		end = time.Date(year, month, day, end.Hour(), end.Minute(), 0, 0, now.Location())
+			year, month, day := now.Date()
+			start = time.Date(year, month, day, start.Hour(), start.Minute(), 0, 0, now.Location())
+			end = time.Date(year, month, day, end.Hour(), end.Minute(), 0, 0, now.Location())
 
-		if end.Before(start) {
-			end = end.Add(24 * time.Hour)
-		}
+			if end.Before(start) {
+				end = end.Add(24 * time.Hour)
+			}
 
-		if (now.After(start) || now.Equal(start)) && now.Before(end) {
-			return true, nil
+			if (now.After(start) || now.Equal(start)) && now.Before(end) {
+				return true, nil
+			}
 		}
 	}
 

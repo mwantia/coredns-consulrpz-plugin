@@ -96,7 +96,7 @@ func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, po
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			if handled, err := HandleTrigger(state, trigger); !handled || err != nil {
+			if handled, err := HandleTrigger(state, ctx, trigger); !handled || err != nil {
 				return nil, err
 			}
 

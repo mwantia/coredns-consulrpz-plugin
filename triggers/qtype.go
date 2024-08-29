@@ -1,6 +1,7 @@
 package triggers
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func MatchQTypeTrigger(state request.Request, value json.RawMessage) (bool, error) {
+func MatchQTypeTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
 	var types []string
 	if err := json.Unmarshal(value, &types); err != nil {
 		return false, err
@@ -17,28 +18,33 @@ func MatchQTypeTrigger(state request.Request, value json.RawMessage) (bool, erro
 	qtype := state.QType()
 
 	for _, t := range types {
-		t = strings.ToUpper(t)
-		switch qtype {
-		case dns.TypeA:
-			return t == "A", nil
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		default:
+			t = strings.ToUpper(t)
+			switch qtype {
+			case dns.TypeA:
+				return t == "A", nil
 
-		case dns.TypeAAAA:
-			return t == "AAAA", nil
+			case dns.TypeAAAA:
+				return t == "AAAA", nil
 
-		case dns.TypeCNAME:
-			return t == "CNAME", nil
+			case dns.TypeCNAME:
+				return t == "CNAME", nil
 
-		case dns.TypeHTTPS:
-			return t == "HTTPS", nil
+			case dns.TypeHTTPS:
+				return t == "HTTPS", nil
 
-		case dns.TypeTXT:
-			return t == "TXT", nil
+			case dns.TypeTXT:
+				return t == "TXT", nil
 
-		case dns.TypeSOA:
-			return t == "SOA", nil
+			case dns.TypeSOA:
+				return t == "SOA", nil
 
-		case dns.TypeNS:
-			return t == "NS", nil
+			case dns.TypeNS:
+				return t == "NS", nil
+			}
 		}
 	}
 

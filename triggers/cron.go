@@ -1,6 +1,7 @@
 package triggers
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"time"
@@ -14,7 +15,7 @@ var (
 	CronCompileMutex sync.RWMutex
 )
 
-func MatchCronTrigger(state request.Request, value json.RawMessage) (bool, error) {
+func MatchCronTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
 	now := time.Now()
 
 	var expressions []string
@@ -23,15 +24,20 @@ func MatchCronTrigger(state request.Request, value json.RawMessage) (bool, error
 	}
 
 	for _, expression := range expressions {
-		schedule, err := GetCachedCron(expression)
-		if err != nil {
-			return false, err
-		}
-		nextTime := schedule.Next(now)
-		prevTime := schedule.Next(now.Add(-time.Minute))
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		default:
+			schedule, err := GetCachedCron(expression)
+			if err != nil {
+				return false, err
+			}
+			nextTime := schedule.Next(now)
+			prevTime := schedule.Next(now.Add(-time.Minute))
 
-		if now.After(prevTime) && now.Before(nextTime) {
-			return true, nil
+			if now.After(prevTime) && now.Before(nextTime) {
+				return true, nil
+			}
 		}
 	}
 
