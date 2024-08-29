@@ -2,6 +2,7 @@ package rpz
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/coredns/coredns/plugin"
@@ -21,7 +22,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	policy, response, err := p.HandlePoliciesParallel(state, ctx, r)
 	duration := time.Since(start).Seconds()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		logging.Log.Errorf("Unable to handle request for '%s': %s", qname, err)
 
 		p.SetQueryStatus(ctx, qtype, QueryStatusError, duration, policy)

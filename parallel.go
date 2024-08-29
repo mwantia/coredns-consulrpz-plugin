@@ -2,6 +2,7 @@ package rpz
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -33,7 +34,9 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 			MetricPolicyExecutionTime(policy.Name, duration)
 
 			if err != nil {
-				logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
+				if !errors.Is(err, context.Canceled) {
+					logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
+				}
 
 				select {
 				case errorChannel <- err:
