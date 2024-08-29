@@ -16,6 +16,44 @@ This plugin enables CoreDNS to use custom Response Policy Zones (RPZ) for DNS fi
 - Configurable policy priorities
 - Metrics for monitoring (compatible with Prometheus)
 
+## Architecture
+
+The CoreDNS RPZ Plugin follows a modular architecture to process DNS queries and apply RPZ policies:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant CoreDNS
+    participant RPZPlugin
+    participant ConsulKV
+    participant PolicyHandler
+    participant TriggerHandler
+    participant ActionHandler
+
+    Client->>CoreDNS: DNS Query
+    CoreDNS->>RPZPlugin: ServeDNS()
+    RPZPlugin->>ConsulKV: Fetch Policies
+    ConsulKV-->>RPZPlugin: Return Policies
+    RPZPlugin->>PolicyHandler: HandlePoliciesParallel()
+    loop For each Policy
+        PolicyHandler->>TriggerHandler: Check Triggers
+        alt Triggers Match
+            TriggerHandler-->>PolicyHandler: Triggers Matched
+            PolicyHandler->>ActionHandler: Execute Actions
+            ActionHandler-->>PolicyHandler: Action Result
+        else Triggers Don't Match
+            TriggerHandler-->>PolicyHandler: No Match
+        end
+    end
+    PolicyHandler-->>RPZPlugin: Policy Result
+    alt Policy Applied
+        RPZPlugin-->>CoreDNS: Modified DNS Response
+    else No Policy Match
+        RPZPlugin-->>CoreDNS: Original DNS Query
+    end
+    CoreDNS-->>Client: DNS Response
+```
+
 ## Installation
 
 To use this plugin, you need to compile it into CoreDNS. Add the following line to the `plugin.cfg` file in your CoreDNS source code:
