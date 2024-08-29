@@ -149,6 +149,8 @@ func (t *RuleTrigger) GetPriority() int {
 			return 3
 		case "cron":
 			return 4
+		case "regex":
+			return 5
 		}
 	}
 	return 1000
