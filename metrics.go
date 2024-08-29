@@ -1,7 +1,6 @@
 package rpz
 
 import (
-	"runtime"
 	"strings"
 
 	"github.com/coredns/coredns/plugin"
@@ -69,16 +68,4 @@ var metricsTriggerMatchCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 func MetricTriggerMatchCount(policy, trigger string) {
 	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
 	metricsTriggerMatchCount.WithLabelValues(p, trigger).Inc()
-}
-
-var metricsGoroutineCount = prometheus.NewGauge(prometheus.GaugeOpts{
-	Namespace: plugin.Namespace,
-	Subsystem: MetricsSubsystem,
-	Name:      "goroutine_count",
-	Help:      "Number of goroutines during policy evaluation.",
-})
-
-func MetricGoroutineCount() {
-	count := float64(runtime.NumGoroutine())
-	metricsGoroutineCount.Set(count)
 }

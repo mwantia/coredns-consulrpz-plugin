@@ -17,7 +17,6 @@ func setup(c *caddy.Controller) error {
 		prometheus.MustRegister(metricsQueryRequestsTotal)
 		prometheus.MustRegister(metricsPolicyExecutionTime)
 		prometheus.MustRegister(metricsTriggerMatchCount)
-		prometheus.MustRegister(metricsGoroutineCount)
 		return nil
 	})
 

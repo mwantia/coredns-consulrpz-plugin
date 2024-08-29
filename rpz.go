@@ -17,8 +17,6 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	qtype := state.QType()
 	qname := dns.Fqdn(state.Name())
 
-	MetricGoroutineCount()
-
 	start := time.Now()
 	policy, response, err := p.HandlePoliciesParallel(state, ctx, r)
 	duration := time.Since(start).Seconds()
