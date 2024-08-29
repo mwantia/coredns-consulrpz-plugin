@@ -35,8 +35,6 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
 	}
 
-	MetricPolicyExecutionTime(policy.Name, duration)
-
 	if response.Fallthrough {
 		p.SetQueryStatus(ctx, qtype, QueryStatusFallthrough, duration, policy)
 		return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)

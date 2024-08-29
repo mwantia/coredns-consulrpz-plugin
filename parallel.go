@@ -3,6 +3,7 @@ package rpz
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
@@ -25,7 +26,12 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 		wg.Add(1)
 		go func(pol Policy) {
 			defer wg.Done()
+			start := time.Now()
 			response, err := HandlePolicy(state, ctx, request, policy)
+			duration := time.Since(start).Seconds()
+
+			MetricPolicyExecutionTime(policy.Name, duration)
+
 			if err != nil {
 				logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
 
@@ -71,8 +77,13 @@ func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy
 	logging.Log.Debugf("Handling policy named '%s'", policy.Name)
 
 	for _, rule := range policy.Rules {
-		if response, err := HandlePolicyRule(state, ctx, r, policy, rule); response != nil || err != nil {
-			return response, err
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			if response, err := HandlePolicyRule(state, ctx, r, policy, rule); response != nil || err != nil {
+				return response, err
+			}
 		}
 	}
 
@@ -81,16 +92,26 @@ func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy
 
 func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, policy Policy, rule PolicyRule) (*Response, error) {
 	for _, trigger := range rule.Triggers {
-		if handled, err := HandleTrigger(state, trigger); !handled || err != nil {
-			return nil, err
-		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			if handled, err := HandleTrigger(state, trigger); !handled || err != nil {
+				return nil, err
+			}
 
-		alias := trigger.GetAliasType()
-		MetricTriggerMatchCount(policy.Name, alias)
+			alias := trigger.GetAliasType()
+			MetricTriggerMatchCount(policy.Name, alias)
+		}
 	}
 
-	if response, err := HandleResponse(state, ctx, r, rule); response != nil || err != nil {
-		return response, err
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		if response, err := HandleResponse(state, ctx, r, rule); response != nil || err != nil {
+			return response, err
+		}
 	}
 
 	return nil, nil
