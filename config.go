@@ -8,6 +8,7 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/hashicorp/consul/api"
 	"github.com/mwantia/coredns-rpz-plugin/logging"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
 type RpzPlugin struct {
@@ -16,7 +17,7 @@ type RpzPlugin struct {
 }
 
 type RpzConfig struct {
-	Policies []Policy
+	Policies []policies.Policy
 }
 
 func CreatePlugin(c *caddy.Controller) (*RpzPlugin, error) {
@@ -94,7 +95,7 @@ func CreateConfig(c *caddy.Controller) (*RpzConfig, error) {
 						continue
 					}
 
-					policy, err := ParsePolicyFile(file)
+					policy, err := policies.ParsePolicyFile(file)
 					if err != nil {
 						logging.Log.Warningf("Unable to parse policy '%s': %v", a, err)
 						continue
@@ -109,7 +110,8 @@ func CreateConfig(c *caddy.Controller) (*RpzConfig, error) {
 		}
 	}
 
-	SortPolicies(config.Policies)
+	policies.ProcessPolicyData(config.Policies)
+	policies.SortPolicies(config.Policies)
 	return config, nil
 }
 
@@ -127,7 +129,7 @@ func (c *RpzConfig) ParseConsulKVPair(kv *api.KVPair) error {
 	logging.Log.Infof("Parsing consul kvpair '%s'", kv.Key)
 	reader := bytes.NewReader(kv.Value)
 
-	policy, err := ParsePolicyFile(reader)
+	policy, err := policies.ParsePolicyFile(reader)
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,7 @@ func (c *RpzConfig) ParseConsulKVPair(kv *api.KVPair) error {
 	return nil
 }
 
-func (c *RpzConfig) UpdateNamedPolicies(policy *Policy) error {
+func (c *RpzConfig) UpdateNamedPolicies(policy *policies.Policy) error {
 	if policy != nil {
 		for i := range c.Policies {
 			if c.Policies[i].Name == policy.Name {

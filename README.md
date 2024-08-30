@@ -135,11 +135,11 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-2. `name`: Matches domain names
+2. `name`: Matches domain names as suffix
   ```json
   {
     "type": "name",
-    "value": ["example.com", ".*-site.com"]
+    "value": ["example.com", "www.site.com"]
   }
   ```
 
@@ -172,7 +172,15 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-Triggers are handled in the following order: `type`, `cidr`, `name`, `time`, `cron`.
+5. `regex`: Matches domain names via regex
+  ```json
+  {
+    "type": "regex",
+    "value": ["(.*)example\\.com"]
+  }
+  ```
+
+Triggers are handled in the following order: `type`, `name`, `cidr`, `time`, `cron`, `regex`.
 
 ## Supported Actions
 
@@ -217,6 +225,33 @@ The plugin supports the following action types:
    ```
 
 Actions are handled in the following order: `deny`, `fallthrough`, `code`, `record`.
+
+## Additional TXT
+
+```
+$ dig example.com
+
+; <<>> DiG 9.18.28-0ubuntu0.22.04.1-Ubuntu <<>> example.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: REFUSED, id: 59853
+;; flags: qr aa rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 2
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: a3c6576853e116eb (echoed)
+;; QUESTION SECTION:
+;example.com.       IN      A
+
+;; ADDITIONAL SECTION:
+example.com. 300    IN      TXT     "Handled by RPZ policy - RPZ Example"
+
+;; Query time: 40 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)
+;; WHEN: Fri Aug 30 22:40:51 CEST 2024
+;; MSG SIZE  rcvd: 149
+```
 
 ## Metrics
 

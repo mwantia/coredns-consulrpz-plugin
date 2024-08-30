@@ -7,6 +7,7 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
 type Response struct {
@@ -24,7 +25,7 @@ type ResponseRecord struct {
 	} `json:"records"`
 }
 
-func HandleResponse(state request.Request, ctx context.Context, r *dns.Msg, rule PolicyRule) (*Response, error) {
+func HandleResponse(state request.Request, ctx context.Context, r *dns.Msg, rule policies.PolicyRule) (*Response, error) {
 	response := &Response{}
 	for _, action := range rule.Actions {
 		if handled, err := HandleActionResponse(state, action, response); handled || err != nil {
@@ -35,7 +36,7 @@ func HandleResponse(state request.Request, ctx context.Context, r *dns.Msg, rule
 	return response, nil
 }
 
-func (r *Response) AppendRcode(state request.Request, action RuleAction) error {
+func (r *Response) AppendRcode(state request.Request, action policies.RuleAction) error {
 	var s string
 	if err := json.Unmarshal(action.Value, &s); err != nil {
 		return err
@@ -50,7 +51,7 @@ func (r *Response) AppendRcode(state request.Request, action RuleAction) error {
 	return nil
 }
 
-func (r *Response) AppendRecord(state request.Request, action RuleAction) error {
+func (r *Response) AppendRecord(state request.Request, action policies.RuleAction) error {
 	var record ResponseRecord
 	if err := json.Unmarshal(action.Value, &record); err != nil {
 		return err

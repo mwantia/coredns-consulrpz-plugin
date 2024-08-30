@@ -2,58 +2,53 @@ package rpz
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
 	"github.com/coredns/coredns/request"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 	"github.com/mwantia/coredns-rpz-plugin/triggers"
 )
 
-var TriggerTypeAliasMap = map[string]string{
-	"name-regex":   "regex",
-	"qname-regex":  "regex",
-	"domain-regex": "regex",
-
-	"qname":  "name",
-	"domain": "name",
-
-	"qtype": "type",
-
-	"ip-address": "cidr",
-	"ip-range":   "cidr",
-	"client-ip":  "cidr",
-}
-
-func HandleTrigger(state request.Request, ctx context.Context, trigger RuleTrigger) (bool, error) {
+func HandleTrigger(state request.Request, ctx context.Context, trigger policies.RuleTrigger) (bool, error) {
 	alias := trigger.GetAliasType()
 
 	switch alias {
 	case "type":
-		return triggers.MatchQTypeTrigger(state, ctx, trigger.Value)
+		if data, ok := trigger.Data.(triggers.QTypeData); ok {
+			return triggers.MatchQTypeTrigger(state, ctx, data)
+		}
+		return false, fmt.Errorf("unable to process trigger data as '%s'", alias)
 
 	case "cidr":
-		return triggers.MatchCidrTrigger(state, ctx, trigger.Value)
+		if data, ok := trigger.Data.(triggers.CidrData); ok {
+			return triggers.MatchCidrTrigger(state, ctx, data)
+		}
+		return false, fmt.Errorf("unable to process trigger data as '%s'", alias)
 
 	case "name":
-		return triggers.MatchQNameTrigger(state, ctx, trigger.Value)
+		if data, ok := trigger.Data.(triggers.QNameData); ok {
+			return triggers.MatchQNameTrigger(state, ctx, data)
+		}
+		return false, fmt.Errorf("unable to process trigger data as '%s'", alias)
 
 	case "time":
-		return triggers.MatchTimeTrigger(state, ctx, trigger.Value)
+		if data, ok := trigger.Data.(triggers.TimeData); ok {
+			return triggers.MatchTimeTrigger(state, ctx, data)
+		}
+		return false, fmt.Errorf("unable to process trigger data as '%s'", alias)
 
 	case "cron":
-		return triggers.MatchCronTrigger(state, ctx, trigger.Value)
+		if data, ok := trigger.Data.(triggers.CronData); ok {
+			return triggers.MatchCronTrigger(state, ctx, data)
+		}
+		return false, fmt.Errorf("unable to process trigger data as '%s'", alias)
 
 	case "regex":
-		return triggers.MatchRegexTrigger(state, ctx, trigger.Value)
+		if data, ok := trigger.Data.(triggers.RegexData); ok {
+			return triggers.MatchRegexTrigger(state, ctx, data)
+		}
+		return false, fmt.Errorf("unable to process trigger data as '%s'", alias)
 	}
 
 	return true, nil // Return true, so any type that doesn't match will be "skipped"
-}
-
-func (trigger RuleTrigger) GetAliasType() string {
-	t := strings.ReplaceAll(strings.ToLower(trigger.Type), " ", "-")
-	if alias, exist := TriggerTypeAliasMap[t]; exist {
-		return alias
-	}
-
-	return t
 }

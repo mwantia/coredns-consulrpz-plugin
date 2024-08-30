@@ -9,6 +9,7 @@ import (
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 	"github.com/mwantia/coredns-rpz-plugin/logging"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
 func (p RpzPlugin) Name() string { return "rpz" }
@@ -73,7 +74,7 @@ func (p RpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	return msg.Rcode, nil
 }
 
-func (p RpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, status string, duration float64, policy *Policy) {
+func (p RpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, status string, duration float64, policy *policies.Policy) {
 	name := ""
 	if policy != nil {
 		name = policy.Name

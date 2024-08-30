@@ -9,23 +9,24 @@ import (
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 	"github.com/mwantia/coredns-rpz-plugin/logging"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
-func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Context, request *dns.Msg) (*Policy, *Response, error) {
+func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Context, request *dns.Msg) (*policies.Policy, *Response, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	var wg sync.WaitGroup
 
 	resultChannel := make(chan struct {
-		Policy   *Policy
+		Policy   *policies.Policy
 		Response *Response
 	}, len(p.Config.Policies))
 	errorChannel := make(chan error, len(p.Config.Policies))
 
 	for _, policy := range p.Config.Policies {
 		wg.Add(1)
-		go func(pol Policy) {
+		go func(pol policies.Policy) {
 			defer wg.Done()
 			start := time.Now()
 			response, err := HandlePolicy(state, ctx, request, policy)
@@ -48,7 +49,7 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 			if response != nil {
 				select {
 				case resultChannel <- struct {
-					Policy   *Policy
+					Policy   *policies.Policy
 					Response *Response
 				}{&policy, response}:
 				case <-ctx.Done():
@@ -76,7 +77,7 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 	}
 }
 
-func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy Policy) (*Response, error) {
+func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy policies.Policy) (*Response, error) {
 	logging.Log.Debugf("Handling policy named '%s'", policy.Name)
 
 	for _, rule := range policy.Rules {
@@ -93,7 +94,7 @@ func HandlePolicy(state request.Request, ctx context.Context, r *dns.Msg, policy
 	return nil, nil
 }
 
-func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, policy Policy, rule PolicyRule) (*Response, error) {
+func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, policy policies.Policy, rule policies.PolicyRule) (*Response, error) {
 	for _, trigger := range rule.Triggers {
 		select {
 		case <-ctx.Done():

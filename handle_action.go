@@ -1,16 +1,11 @@
 package rpz
 
 import (
-	"strings"
-
 	"github.com/coredns/coredns/request"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
-var ActionTypeAliasMap = map[string]string{
-	"rcode": "code",
-}
-
-func HandleActionResponse(state request.Request, action RuleAction, response *Response) (bool, error) {
+func HandleActionResponse(state request.Request, action policies.RuleAction, response *Response) (bool, error) {
 	alias := action.GetAliasType()
 
 	switch alias {
@@ -34,13 +29,4 @@ func HandleActionResponse(state request.Request, action RuleAction, response *Re
 	}
 
 	return false, nil
-}
-
-func (action RuleAction) GetAliasType() string {
-	t := strings.ToLower(action.Type)
-	if alias, exist := ActionTypeAliasMap[t]; exist {
-		return alias
-	}
-
-	return t
 }

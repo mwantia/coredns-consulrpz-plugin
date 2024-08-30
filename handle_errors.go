@@ -3,6 +3,7 @@ package rpz
 import (
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
 func HandleError(state request.Request, rcode int, e error) (int, error) {
@@ -14,7 +15,7 @@ func HandleError(state request.Request, rcode int, e error) (int, error) {
 	return rcode, e
 }
 
-func HandleDenyPolicy(state request.Request, policy Policy) (int, error) {
+func HandleDenyPolicy(state request.Request, policy policies.Policy) (int, error) {
 	msg := PrepareResponseRcode(state.Req, dns.RcodeRefused, false)
 	WriteExtraPolicyHandle(msg, state, policy)
 	if err := state.W.WriteMsg(msg); err != nil {

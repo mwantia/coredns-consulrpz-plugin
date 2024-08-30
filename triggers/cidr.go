@@ -10,35 +10,45 @@ import (
 	"github.com/mwantia/coredns-rpz-plugin/logging"
 )
 
-func MatchCidrTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
+type CidrData struct {
+	Networks []net.IPNet
+}
+
+func ProcessCidrData(value json.RawMessage) (interface{}, error) {
 	var cidrs []string
 	if err := json.Unmarshal(value, &cidrs); err != nil {
-		return false, err
+		return nil, err
 	}
 
+	data := CidrData{}
+
+	for _, cidr := range cidrs {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, err
+		}
+
+		data.Networks = append(data.Networks, *network)
+	}
+
+	return data, nil
+}
+
+func MatchCidrTrigger(state request.Request, ctx context.Context, data CidrData) (bool, error) {
 	ip := state.IP()
 	clientIP := net.ParseIP(ip)
 	if clientIP == nil {
 		return false, fmt.Errorf("unable to parse client IP '%s'", ip)
 	}
 
-	for _, cidr := range cidrs {
+	for _, network := range data.Networks {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
 		default:
-			logging.Log.Debugf("Checking cidr '%s' with client '%s'", cidr, clientIP)
-			// Simplest check and should always be tried first
-			if ip == cidr {
-				return true, nil
-			}
+			logging.Log.Debugf("Checking cidr '%s' with client '%s'", network, clientIP)
 
-			_, ipnet, err := net.ParseCIDR(cidr)
-			if err != nil {
-				return false, nil // Ignore parse errors
-			}
-
-			if ipnet.Contains(clientIP) {
+			if network.Contains(clientIP) {
 				return true, nil
 			}
 		}

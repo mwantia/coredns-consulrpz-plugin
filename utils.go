@@ -8,6 +8,7 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
+	"github.com/mwantia/coredns-rpz-plugin/policies"
 )
 
 func PrepareResponseRcode(request *dns.Msg, rcode int, recursionAvailable bool) *dns.Msg {
@@ -28,7 +29,7 @@ func PrepareResponseReply(request *dns.Msg, recursionAvailable bool) *dns.Msg {
 	return m
 }
 
-func WriteExtraPolicyHandle(request *dns.Msg, state request.Request, policy Policy) {
+func WriteExtraPolicyHandle(request *dns.Msg, state request.Request, policy policies.Policy) {
 	qname := dns.Fqdn(state.Name())
 
 	request.Extra = append(request.Extra, &dns.TXT{

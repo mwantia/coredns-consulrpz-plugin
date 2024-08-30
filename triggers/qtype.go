@@ -9,20 +9,33 @@ import (
 	"github.com/miekg/dns"
 )
 
-func MatchQTypeTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
+type QTypeData struct {
+	Types []string
+}
+
+func ProcessQTypeData(value json.RawMessage) (interface{}, error) {
 	var types []string
 	if err := json.Unmarshal(value, &types); err != nil {
-		return false, err
+		return nil, err
 	}
 
-	qtype := state.QType()
+	data := QTypeData{}
 
 	for _, t := range types {
+		data.Types = append(data.Types, strings.ToUpper(t))
+	}
+
+	return data, nil
+}
+
+func MatchQTypeTrigger(state request.Request, ctx context.Context, data QTypeData) (bool, error) {
+	qtype := state.QType()
+
+	for _, t := range data.Types {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
 		default:
-			t = strings.ToUpper(t)
 			switch qtype {
 			case dns.TypeA:
 				return t == "A", nil

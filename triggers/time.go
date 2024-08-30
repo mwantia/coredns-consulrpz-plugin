@@ -8,37 +8,57 @@ import (
 	"github.com/coredns/coredns/request"
 )
 
-type TimeTrigger struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
+type TimeData struct {
+	TimeRanges []TimeRange
 }
 
-func MatchTimeTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
-	now := time.Now()
+type TimeRange struct {
+	Start time.Time
+	End   time.Time
+}
 
-	var tts []TimeTrigger
-	if err := json.Unmarshal(value, &tts); err != nil {
-		return false, err
+func ProcessTimeData(value json.RawMessage) (interface{}, error) {
+	var timeranges []struct {
+		Start string `json:"start"`
+		End   string `json:"end"`
+	}
+	if err := json.Unmarshal(value, &timeranges); err != nil {
+		return nil, err
 	}
 
-	for _, tt := range tts {
+	data := TimeData{}
+
+	for _, timerange := range timeranges {
+		start, err := time.Parse("15:04", timerange.Start)
+		if err != nil {
+			return nil, err
+		}
+
+		end, err := time.Parse("15:04", timerange.End)
+		if err != nil {
+			return false, err
+		}
+
+		data.TimeRanges = append(data.TimeRanges, TimeRange{
+			Start: start,
+			End:   end,
+		})
+	}
+	return data, nil
+}
+
+func MatchTimeTrigger(state request.Request, ctx context.Context, data TimeData) (bool, error) {
+	now := time.Now()
+
+	for _, timerange := range data.TimeRanges {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
 		default:
-			start, err := time.Parse("15:04", tt.Start)
-			if err != nil {
-				return false, err
-			}
-
-			end, err := time.Parse("15:04", tt.End)
-			if err != nil {
-				return false, err
-			}
-
 			year, month, day := now.Date()
-			start = time.Date(year, month, day, start.Hour(), start.Minute(), 0, 0, now.Location())
-			end = time.Date(year, month, day, end.Hour(), end.Minute(), 0, 0, now.Location())
+
+			start := time.Date(year, month, day, timerange.Start.Hour(), timerange.Start.Minute(), 0, 0, now.Location())
+			end := time.Date(year, month, day, timerange.End.Hour(), timerange.End.Minute(), 0, 0, now.Location())
 
 			if end.Before(start) {
 				end = end.Add(24 * time.Hour)

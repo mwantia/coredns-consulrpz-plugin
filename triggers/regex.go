@@ -4,68 +4,60 @@ import (
 	"context"
 	"encoding/json"
 	"regexp"
-	"sync"
 
 	"github.com/coredns/coredns/request"
 )
 
-var (
-	RegexCompileCache = make(map[string]*regexp.Regexp)
-	RegexCompileMutex sync.RWMutex
-)
+type RegexData struct {
+	Entries []struct {
+		Pattern string
+		Regex   regexp.Regexp
+	}
+}
 
-func MatchRegexTrigger(state request.Request, ctx context.Context, value json.RawMessage) (bool, error) {
+func ProcessRegexData(value json.RawMessage) (interface{}, error) {
 	var patterns []string
 	if err := json.Unmarshal(value, &patterns); err != nil {
-		return false, err
+		return nil, err
 	}
 
-	qname := state.Name()
+	data := RegexData{}
+
 	for _, pattern := range patterns {
+		regex, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		data.Entries = append(data.Entries, struct {
+			Pattern string
+			Regex   regexp.Regexp
+		}{
+			Pattern: pattern,
+			Regex:   *regex,
+		})
+	}
+
+	return data, nil
+}
+
+func MatchRegexTrigger(state request.Request, ctx context.Context, data RegexData) (bool, error) {
+
+	qname := state.Name()
+	for _, entry := range data.Entries {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
 		default:
-			if qname == pattern {
+			if entry.Pattern == qname {
 				return true, nil
 			}
 
-			regex, err := GetCachedRegex(pattern)
-			if err != nil {
-				return false, err
-			}
-
-			if regex.MatchString(qname) {
+			if entry.Regex.MatchString(qname) {
 				return true, nil
 			}
 		}
 	}
 
 	return false, nil
-}
-
-func GetCachedRegex(pattern string) (*regexp.Regexp, error) {
-	RegexCompileMutex.RLock()
-	regex, exists := RegexCompileCache[pattern]
-	RegexCompileMutex.RUnlock()
-
-	if exists {
-		return regex, nil
-	}
-
-	RegexCompileMutex.Lock()
-	defer RegexCompileMutex.Unlock()
-
-	regex, exists = RegexCompileCache[pattern]
-	if exists {
-		return regex, nil
-	}
-
-	regex, err := regexp.Compile(pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	RegexCompileCache[pattern] = regex
-	return regex, nil
 }

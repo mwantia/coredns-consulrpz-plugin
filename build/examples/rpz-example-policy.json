@@ -7,7 +7,7 @@
         "triggers": [
           {
             "type": "name",
-            "value": ["example.com"]
+            "value": ["example.com", "test.com", "bild.de"]
           },
           {
             "type": "type",
