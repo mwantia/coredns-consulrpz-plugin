@@ -1,168 +1,134 @@
-package rpz
+package consulrpz
 
 import (
 	"bytes"
-	"os"
+	"fmt"
 
 	"github.com/coredns/caddy"
-	"github.com/coredns/coredns/plugin"
 	"github.com/hashicorp/consul/api"
-	"github.com/mwantia/coredns-rpz-plugin/logging"
-	"github.com/mwantia/coredns-rpz-plugin/policies"
+	"github.com/mwantia/coredns-consulrpz-plugin/consul"
+	"github.com/mwantia/coredns-consulrpz-plugin/logging"
+	"github.com/mwantia/coredns-consulrpz-plugin/policies"
+	"github.com/rschone/corefile2struct/pkg/corefile"
 )
 
-type RpzPlugin struct {
-	Next   plugin.Handler
-	Config *RpzConfig
+type ConsulRpzConfig struct {
+	Arguments []string // This will store the prefix (allows for multiple entries)
+
+	Address   string `cf:"address" default:"http://127.0.0.1:8500"`
+	Token     string `cf:"token"`
+	Watch     bool   `cf:"watch" default:"true"`
+	Execution string `cf:"execution" default:"parallel" check:"oneOf(sequence|parallel)"`
 }
 
-type RpzConfig struct {
-	Policies []policies.Policy
+func CreatePlugin(c *caddy.Controller) (*ConsulRpzPlugin, error) {
+	p := &ConsulRpzPlugin{}
+
+	var err error
+	var cfg ConsulRpzConfig
+	if err = corefile.Parse(c, &cfg); err != nil {
+		return nil, err
+	}
+
+	p.Cfg = &cfg
+	if p.Consul, err = consul.CreateConsulClient(cfg.Address, cfg.Token); err != nil {
+		return nil, err
+	}
+
+	if err := LoadConsulKVPrefix(p); err != nil {
+		return nil, err
+	}
+	policies.SortPolicies(p.Policies)
+
+	return p, nil
 }
 
-func CreatePlugin(c *caddy.Controller) (*RpzPlugin, error) {
-	plug := &RpzPlugin{}
+func LoadConsulKVPrefix(p *ConsulRpzPlugin) error {
+	logging.Log.Infof("Load prefixes from arguments: %s", p.Cfg.Arguments)
+	// Each arguments passed onto consulrpz will be handled as prefix
+	for _, prefix := range p.Cfg.Arguments {
+		pairs, _, err := consul.GetConsulKVPairs(p.Consul, prefix)
+		if err != nil {
+			return err
+		}
 
-	config, err := CreateConfig(c)
+		if err := ParseConsulKVPairs(p, pairs); err != nil {
+			return err
+		}
+
+		if p.Cfg.Watch {
+			logging.Log.Infof("Watching prefix '%s' for new changes/updates", prefix)
+			// Only watch if the config has been set to true
+			if err := consul.WatchConsulKVPrefix(p.Cfg.Address, p.Cfg.Token, prefix, func(watchpairs api.KVPairs) error {
+				logging.Log.Debugf("New update for prefix '%s'", prefix)
+				return ParseConsulKVPairs(p, watchpairs)
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func ParseConsulKVPairs(p *ConsulRpzPlugin, pairs api.KVPairs) error {
+	for _, kv := range pairs {
+
+		policy, err := ParseConsulKVPair(kv)
+		if err != nil {
+			return err
+		}
+
+		UpdateNamedPolicies(p, policy)
+	}
+
+	return nil
+}
+
+func ParseConsulKVPair(kv *api.KVPair) (*policies.Policy, error) {
+	reader := bytes.NewReader(kv.Value)
+	policy, err := policies.ParsePolicyFile(reader)
 	if err != nil {
 		return nil, err
 	}
 
-	plug.Config = config
+	if ok, err := policy.ValidatePolicy(); !ok || err != nil {
+		return nil, fmt.Errorf("unable to validate policy: %v", err)
+	}
 
-	return plug, nil
+	policy.SortPolicy()
+	policy.ProcessPolicyData()
+
+	return policy, nil
 }
 
-func CreateConfig(c *caddy.Controller) (*RpzConfig, error) {
-	config := &RpzConfig{}
+func UpdateNamedPolicies(p *ConsulRpzPlugin, policy *policies.Policy) error {
+	if policy == nil {
+		return fmt.Errorf("unable to update with an empty policy")
+	}
 
-	n := 0
-	for c.Next() {
-		if n > 0 {
-			return nil, c.Err("Unable to load config")
-		}
-		n++
+	for i := range p.Policies {
+		if p.Policies[i].Name == policy.Name {
 
-		args := c.RemainingArgs()
-		if len(args) >= 1 {
-			logging.Log.Debugf("Available args: %v", args)
-		}
+			logging.Log.Debugf("Checking hash for policy '%s':", policy.Name)
+			logging.Log.Debugf("  Hash1: %s", p.Policies[i].Hash)
+			logging.Log.Debugf("  Hash2: %s", policy.Hash)
 
-		for c.NextBlock() {
-			val := c.Val()
-			args = c.RemainingArgs()
+			if p.Policies[i].Hash != policy.Hash {
+				p.Policies[i].Priority = policy.Priority
+				p.Policies[i].Rules = policy.Rules
+				p.Policies[i].Target = policy.Target
+				p.Policies[i].Type = policy.Type
+				p.Policies[i].Hash = policy.Hash
 
-			if len(args) < 1 {
-				return nil, c.Errf("config '%s' can't be empty", val)
+				logging.Log.Debugf("Policy '%s' updated", policy.Name)
 			}
 
-			switch val {
-			case "consul":
-				consul := ConsulConfig{
-					Prefix:  args[0],
-					Address: "http://127.0.0.1:8500",
-					Token:   "",
-				}
-
-				if len(args) > 1 {
-					consul.Address = args[1]
-				}
-				if len(args) > 2 {
-					consul.Token = args[2]
-				}
-
-				pairs, _, err := GetConsulKVPairs(consul)
-				if err != nil {
-					logging.Log.Warningf("Unable to load consul prefix '%s': %v", args[0], err)
-					continue
-				}
-
-				if err := config.ParseConsulKVPairs(pairs); err != nil {
-					logging.Log.Warningf("Unable to parse consul kvpairs '%s': %v", args[0], err)
-				}
-
-				if err := WatchConsulPrefix(consul, func(pairs api.KVPairs) error {
-					return config.ParseConsulKVPairs(pairs)
-				}); err != nil {
-					logging.Log.Warningf("Unable to load consul prefix '%s': %v", args[0], err)
-				}
-
-			case "policy":
-				for _, a := range args {
-					file, err := os.Open(a)
-					if err != nil {
-						logging.Log.Warningf("Unable to load file '%s': %v", a, err)
-						continue
-					}
-
-					policy, err := policies.ParsePolicyFile(file)
-					if err != nil {
-						logging.Log.Warningf("Unable to parse policy '%s': %v", a, err)
-						continue
-					}
-
-					if err := config.UpdateNamedPolicies(policy); err != nil {
-						logging.Log.Warningf("Unable to update policies: %v", err)
-						continue
-					}
-				}
-			}
+			return nil
 		}
 	}
 
-	policies.ProcessPolicyData(config.Policies)
-	policies.SortPolicies(config.Policies)
-	return config, nil
-}
-
-func (c *RpzConfig) ParseConsulKVPairs(pairs api.KVPairs) error {
-	for _, kv := range pairs {
-		if err := c.ParseConsulKVPair(kv); err != nil {
-			logging.Log.Warningf("Unable to parse kvpair '%s': %v", kv.Key, err)
-			continue
-		}
-	}
-	return nil
-}
-
-func (c *RpzConfig) ParseConsulKVPair(kv *api.KVPair) error {
-	logging.Log.Infof("Parsing consul kvpair '%s'", kv.Key)
-	reader := bytes.NewReader(kv.Value)
-
-	policy, err := policies.ParsePolicyFile(reader)
-	if err != nil {
-		return err
-	}
-
-	if err := c.UpdateNamedPolicies(policy); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *RpzConfig) UpdateNamedPolicies(policy *policies.Policy) error {
-	if policy != nil {
-		for i := range c.Policies {
-			if c.Policies[i].Name == policy.Name {
-				logging.Log.Debugf("Checking hash for policy '%s':", policy.Name)
-				logging.Log.Debugf("  Hash1: %s", c.Policies[i].Hash)
-				logging.Log.Debugf("  Hash2: %s", policy.Hash)
-
-				if c.Policies[i].Hash != policy.Hash {
-					c.Policies[i].Priority = policy.Priority
-					c.Policies[i].Rules = policy.Rules
-					c.Policies[i].Hash = policy.Hash
-
-					logging.Log.Debugf("Policy '%s' updated", policy.Name)
-				}
-
-				return nil
-			}
-		}
-
-		logging.Log.Infof("Policy '%s' added to the list with hash ['%s']", policy.Name, policy.Hash)
-		c.Policies = append(c.Policies, *policy)
-	}
+	logging.Log.Infof("Policy '%s' added to the list with hash ['%s']", policy.Name, policy.Hash)
+	p.Policies = append(p.Policies, *policy)
 	return nil
 }

@@ -1,4 +1,4 @@
-package rpz
+package runtime
 
 import (
 	"context"
@@ -8,11 +8,12 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-rpz-plugin/logging"
-	"github.com/mwantia/coredns-rpz-plugin/policies"
+	"github.com/mwantia/coredns-consulrpz-plugin/logging"
+	"github.com/mwantia/coredns-consulrpz-plugin/metrics"
+	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
-func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Context, request *dns.Msg) (*policies.Policy, *Response, error) {
+func HandlePoliciesParallel(state request.Request, ctx context.Context, request *dns.Msg, p []policies.Policy) (*policies.Policy, *Response, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -21,10 +22,10 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 	resultChannel := make(chan struct {
 		Policy   *policies.Policy
 		Response *Response
-	}, len(p.Config.Policies))
-	errorChannel := make(chan error, len(p.Config.Policies))
+	}, len(p))
+	errorChannel := make(chan error, len(p))
 
-	for _, policy := range p.Config.Policies {
+	for _, policy := range p {
 		wg.Add(1)
 		go func(pol policies.Policy) {
 			defer wg.Done()
@@ -32,7 +33,7 @@ func (p RpzPlugin) HandlePoliciesParallel(state request.Request, ctx context.Con
 			response, err := HandlePolicy(state, ctx, request, policy)
 			duration := time.Since(start).Seconds()
 
-			MetricPolicyExecutionTime(policy.Name, duration)
+			metrics.MetricPolicyExecutionTime(policy.Name, duration)
 
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
@@ -105,7 +106,7 @@ func HandlePolicyRule(state request.Request, ctx context.Context, r *dns.Msg, po
 			}
 
 			alias := trigger.GetAliasType()
-			MetricTriggerMatchCount(policy.Name, alias)
+			metrics.MetricTriggerMatchCount(policy.Name, alias)
 		}
 	}
 

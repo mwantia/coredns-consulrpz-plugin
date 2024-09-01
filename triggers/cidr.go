@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/coredns/coredns/request"
-	"github.com/mwantia/coredns-rpz-plugin/logging"
+	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
 type CidrData struct {

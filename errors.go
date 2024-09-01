@@ -1,9 +1,9 @@
-package rpz
+package consulrpz
 
 import (
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-rpz-plugin/policies"
+	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
 func HandleError(state request.Request, rcode int, e error) (int, error) {

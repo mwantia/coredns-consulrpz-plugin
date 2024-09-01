@@ -2,7 +2,10 @@
   log
   errors
   debug
-  rpz {
-    policy /app/examples/rpz-example-policy.json
+
+  consulrpz dns/policies dns/tests/policies {
+    execution sequence
   }
+
+  forward . 1.1.1.1
 }

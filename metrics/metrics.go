@@ -1,4 +1,4 @@
-package rpz
+package metrics
 
 import (
 	"strings"
@@ -6,16 +6,6 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
-)
-
-const (
-	MetricsSubsystem = "rpz"
-
-	QueryStatusError       = "ERROR"
-	QueryStatusDeny        = "DENY"
-	QueryStatusFallthrough = "FALLTHROUGH"
-	QueryStatusSuccess     = "SUCCESS"
-	QueryStatusNoMatch     = "NOMATCH"
 )
 
 var metricsRpzRequestDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{

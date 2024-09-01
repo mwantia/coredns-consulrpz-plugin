@@ -2,6 +2,34 @@ package policies
 
 import "sort"
 
+func (p Policy) SortPolicy() {
+	for _, rule := range p.Rules {
+		sort.Slice(rule.Triggers, func(i, j int) bool {
+			ipriority := rule.Triggers[i].GetPriority()
+			jpriority := rule.Triggers[j].GetPriority()
+
+			return ipriority < jpriority
+		})
+		sort.Slice(rule.Actions, func(i, j int) bool {
+			ipriority := rule.Actions[i].GetPriority()
+			jpriority := rule.Actions[j].GetPriority()
+
+			return ipriority < jpriority
+		})
+	}
+
+	sort.Slice(p.Rules, func(i, j int) bool {
+		ipriority := p.Rules[i].GetPriority()
+		jpriority := p.Rules[j].GetPriority()
+
+		if ipriority != jpriority {
+			return ipriority < jpriority
+		}
+
+		return len(p.Rules[i].Triggers) < len(p.Rules[j].Triggers)
+	})
+}
+
 func SortPolicies(policies []Policy) {
 	sort.Slice(policies, func(i, j int) bool {
 		ipriority := policies[i].GetPriority()
@@ -13,34 +41,6 @@ func SortPolicies(policies []Policy) {
 
 		return len(policies[i].Rules) < len(policies[j].Rules)
 	})
-
-	for _, policy := range policies {
-		sort.Slice(policy.Rules, func(i, j int) bool {
-			ipriority := policy.Rules[i].GetPriority()
-			jpriority := policy.Rules[j].GetPriority()
-
-			if ipriority != jpriority {
-				return ipriority < jpriority
-			}
-
-			return len(policy.Rules[i].Triggers) < len(policy.Rules[j].Triggers)
-		})
-
-		for _, rule := range policy.Rules {
-			sort.Slice(rule.Triggers, func(i, j int) bool {
-				ipriority := rule.Triggers[i].GetPriority()
-				jpriority := rule.Triggers[j].GetPriority()
-
-				return ipriority < jpriority
-			})
-			sort.Slice(rule.Actions, func(i, j int) bool {
-				ipriority := rule.Actions[i].GetPriority()
-				jpriority := rule.Actions[j].GetPriority()
-
-				return ipriority < jpriority
-			})
-		}
-	}
 }
 
 func (p *Policy) GetPriority() int {

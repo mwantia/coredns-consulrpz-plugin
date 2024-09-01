@@ -1,4 +1,4 @@
-package rpz
+package consulrpz
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	clog "github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-rpz-plugin/logging"
+	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
 func TestRPZ(tst *testing.T) {
@@ -20,8 +20,10 @@ func TestRPZ(tst *testing.T) {
 	clog.D.Set()
 
 	c := caddy.NewTestController("dns", `
-		rpz {
-		  policy build/examples/rpz-example-policy.json
+		consulrpz dns/tests/policies {
+		  address http://127.0.0.1:8500
+		  watch false
+		  execution sequence
 		}
 	`)
 
@@ -38,7 +40,7 @@ func TestRPZ(tst *testing.T) {
 	RunTests(tst, plug, tests)
 }
 
-func RunTests(tst *testing.T, plug *RpzPlugin, tests []string) {
+func RunTests(tst *testing.T, plug *ConsulRpzPlugin, tests []string) {
 	ctx := context.TODO()
 	match := "1.2.3.4"
 

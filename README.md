@@ -1,4 +1,4 @@
-# CoreDNS RPZ Plugin
+# CoreDNS ConsulRPZ Plugin
 
 This plugin enables CoreDNS to use custom Response Policy Zones (RPZ) for DNS filtering and policy enforcement.
 
@@ -24,17 +24,17 @@ The CoreDNS RPZ Plugin follows a modular architecture to process DNS queries and
 sequenceDiagram
     participant Client
     participant CoreDNS
-    participant RPZPlugin
-    participant ConsulKV
+    participant ConsulRPZ
+    participant Consul
     participant PolicyHandler
     participant TriggerHandler
     participant ActionHandler
 
     Client->>CoreDNS: DNS Query
-    CoreDNS->>RPZPlugin: ServeDNS()
-    RPZPlugin->>ConsulKV: Fetch Policies
-    ConsulKV-->>RPZPlugin: Return Policies
-    RPZPlugin->>PolicyHandler: HandlePoliciesParallel()
+    CoreDNS->>ConsulRPZ: ServeDNS()
+    ConsulRPZ->>Consul: Fetch Policies
+    Consul-->>ConsulRPZ: Return Policies
+    ConsulRPZ->>PolicyHandler: HandlePoliciesParallel()
     loop For each Policy
         PolicyHandler->>TriggerHandler: Check Triggers
         alt Triggers Match
@@ -45,11 +45,11 @@ sequenceDiagram
             TriggerHandler-->>PolicyHandler: No Match
         end
     end
-    PolicyHandler-->>RPZPlugin: Policy Result
+    PolicyHandler-->>ConsulRPZ: Policy Result
     alt Policy Applied
-        RPZPlugin-->>CoreDNS: Modified DNS Response
+        ConsulRPZ-->>CoreDNS: Modified DNS Response
     else No Policy Match
-        RPZPlugin-->>CoreDNS: Original DNS Query
+        ConsulRPZ-->>CoreDNS: Original DNS Query
     end
     CoreDNS-->>Client: DNS Response
 ```
@@ -59,13 +59,13 @@ sequenceDiagram
 To use this plugin, you need to compile it into CoreDNS. Add the following line to the `plugin.cfg` file in your CoreDNS source code:
 
 ```
-rpz:github.com/mwantia/coredns-rpz-plugin
+consulrpz:github.com/mwantia/coredns-consulrpz-plugin
 ```
 
 Then, rebuild CoreDNS with:
 
 ```sh
-go get github.com/mwantia/coredns-rpz-plugin
+go get github.com/mwantia/coredns-consulrpz-plugin
 go generate
 go build
 ```
@@ -75,24 +75,31 @@ go build
 Add the plugin to your CoreDNS configuration file (Corefile):
 
 ```corefile
-rpz {
-    file policies/example.json
-    consul dns/policies
+consulrpz <prefix> {        # eg. dns/policies
+  address   = [<address>]   # eg. http://127.0.0.1:8500 
+  token     = [<token>]     # Token for ACL access
+  watch     = [<watch>]     # boolean if watch enabled or not
+  execution = [<execution>] # parallel or sequence
 }
 ```
 
 ### Configuration options:
 
-- `policy`: Specifies a json-file used for storing RPZ policies 
-- `consul`: Specifies the Consul KV prefix for storing RPZ policies
+- `prefix`:    Consul KV prefix for loading policies (Can be defined multiple times)
+- `address`:   Consul HTTP address (defaults: `http://127.0.0.1:8500`)
+- `token`:     Consul ACL token (optional)
+- `watch`:     If set, plugin will watch for any changes and updates the policies with matching names (defaults: `true`)
+- `execution`: Defines the execution mode, which can either be `sequence` or `parallel` (defaults: `parallel`)
+  - `sequence`: Executes all policies in sequence, sorted by priority and returns after getting a result
+  - `parallel`: Executes all policies in parallel and returns a result as soon as a satisfying match is found
 
-## RPZ Configuration
+## Policy Configuration
 
-These custom RPZ policies are written in JSON. Each policy should be a object with the following structure:
+Policies are written in JSON. Each policy either defines its own rules or uses a `target` to parse its entries as `trigger` and `action`:
 
 ```json
 {
-    "name": "RPZ Example",
+    "name": "RPZ Rule Example",
     "version": "1.0",
     "priority": 0,
     "rules": [
@@ -113,15 +120,32 @@ These custom RPZ policies are written in JSON. Each policy should be a object wi
 }
 ```
 
+```json
+{
+    "name": "RPZ Target Example",
+    "version": "1.0",
+    "priority": 0,
+    "target": "https://raw.githubusercontent.com/ph00lt0/blocklist/master/rpz-blocklist.txt",
+    "type": "rpz"
+}
+```
+
 ### Policy structure:
-- `name`: Name of the policy (string)
-- `version`: Version of the policy format (string, must be "1.0")
-- `priority`: Priority of the policy (integer, lower values have higher priority; Default `1000`)
-- `rules`: Array of policy rules
+
+- `name`:     Defines the bame of the policy
+- `version`:  The version used for this policy format (Must be set to `1.0` or omitted)
+- `priority`: Priority of the policy (Default: `1000`)
+- `target`:   Defines the target file or url (Must be set together with `type`)
+- `type`:     Defines the type used for parsing the target
+  - `rpz`:    Parses the target content as "rpz syntax file"
+  - `hosts`:  Parses the target content as simple "hosts syntax" (Currently not implemented)
+  - `abp`:    Parses the target content as "adblock-plus syntax" (Currently not implemented)
+- `rules`:    Set of array of policy rules defined for this policy
 
 ### Rule structure:
+
 - `triggers`: Array of conditions that trigger the rule
-- `actions`: Array of actions to take when the rule is triggered
+- `actions`:  Array of actions to take when the rule is triggered
 
 ## Supported Triggers
 
@@ -228,7 +252,7 @@ Actions are handled in the following order: `deny`, `fallthrough`, `code`, `reco
 
 ## Additional TXT
 
-```
+```yml
 $ dig example.com
 
 ; <<>> DiG 9.18.28-0ubuntu0.22.04.1-Ubuntu <<>> example.com
@@ -245,7 +269,7 @@ $ dig example.com
 ;example.com.       IN      A
 
 ;; ADDITIONAL SECTION:
-example.com. 300    IN      TXT     "Handled by RPZ policy - RPZ Example"
+example.com. 300    IN      TXT     "Handled by policy - RPZ Rule Example"
 
 ;; Query time: 40 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)
@@ -257,10 +281,14 @@ example.com. 300    IN      TXT     "Handled by RPZ policy - RPZ Example"
 
 This plugin exposes the following metrics for Prometheus:
 
-* `coredns_rpz_request_duration_seconds{status, le}`: 
-  * Histogram of the time (in seconds) each request to Consul took
-* `coredns_rpz_query_requests_total{status, policy, type}`:
+* `coredns_consulrpz_request_duration_seconds{status, le}`: 
+  * Histogram of the time (in seconds) each RPZ request took
+* `coredns_consulrpz_query_requests_total{status, policy, type}`:
   * Count of the queries received and processed by the plugin
+* `coredns_consulrpz_policy_execution_time_seconds{policy, le}`:
+  * Histogram of the time (in seconds) each policy execution took
+* `coredns_consulrpz_trigger_match_total{policy, trigger}`:
+  * Count of trigger matches per policy by the plugin
 
 ## License
 

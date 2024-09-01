@@ -4,7 +4,7 @@ FROM golang:1.22 AS builder
 WORKDIR /app
 
 # Copy the local plugin files
-COPY . /app/coredns-rpz-plugin
+COPY . /app/coredns-consulrpz-plugin
 
 # Clone CoreDNS repository
 RUN git clone https://github.com/coredns/coredns.git
@@ -14,17 +14,20 @@ WORKDIR /app/coredns
 COPY ./build/plugin.cfg /app/coredns/plugin.cfg
 
 # Update go.mod to use the local plugin
-RUN go mod edit -replace github.com/mwantia/coredns-rpz-plugin=/app/coredns-rpz-plugin
+RUN go mod edit -replace github.com/mwantia/coredns-consulrpz-plugin=/app/coredns-consulrpz-plugin
 
 # Update dependencies and build
 RUN go get github.com/mwantia/coredns-env-plugin
-RUN go get github.com/mwantia/coredns-rpz-plugin
+RUN go get github.com/mwantia/coredns-consulrpz-plugin
 RUN go generate
 RUN go mod tidy
 RUN make
 
 # Final stage
 FROM debian:bullseye-slim
+
+# Update CA certificates in the builder stage
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
 WORKDIR /app
 
@@ -36,4 +39,4 @@ EXPOSE 53/udp
 EXPOSE 53/tcp
 
 # Run CoreDNS
-CMD ["/app/coredns"]
+ENTRYPOINT ["/app/coredns"]

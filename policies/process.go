@@ -1,17 +1,15 @@
 package policies
 
-import "github.com/mwantia/coredns-rpz-plugin/triggers"
+import "github.com/mwantia/coredns-consulrpz-plugin/triggers"
 
-func ProcessPolicyData(policies []Policy) error {
-	for i := range policies {
-		for j := range policies[i].Rules {
-			for k := range policies[i].Rules[j].Triggers {
-				trigger := &policies[i].Rules[j].Triggers[k]
-				var err error
+func (p Policy) ProcessPolicyData() error {
+	for i := range p.Rules {
+		for j := range p.Rules[i].Triggers {
+			trigger := &p.Rules[i].Triggers[j]
+			var err error
 
-				if trigger.Data, err = trigger.ProcessData(); err != nil {
-					return err
-				}
+			if trigger.Data, err = trigger.ProcessData(); err != nil {
+				return err
 			}
 		}
 	}

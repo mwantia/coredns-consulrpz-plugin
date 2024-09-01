@@ -1,4 +1,4 @@
-package rpz
+package consulrpz
 
 import (
 	"crypto/sha256"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-rpz-plugin/policies"
+	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
 func PrepareResponseRcode(request *dns.Msg, rcode int, recursionAvailable bool) *dns.Msg {
@@ -27,6 +27,11 @@ func PrepareResponseReply(request *dns.Msg, recursionAvailable bool) *dns.Msg {
 	m.RecursionAvailable = recursionAvailable
 
 	return m
+}
+
+func GetFileNameFromURL(url string) string {
+	parts := strings.Split(url, "/")
+	return parts[len(parts)-1]
 }
 
 func WriteExtraPolicyHandle(request *dns.Msg, state request.Request, policy policies.Policy) {

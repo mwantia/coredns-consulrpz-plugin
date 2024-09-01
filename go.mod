@@ -1,4 +1,4 @@
-module github.com/mwantia/coredns-rpz-plugin
+module github.com/mwantia/coredns-consulrpz-plugin
 
 go 1.22.5
 
@@ -48,6 +48,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/grpc v1.63.2 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
+	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 )
 
 require (
@@ -55,4 +56,5 @@ require (
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/hashicorp/consul/api v1.29.2
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/rschone/corefile2struct v0.0.0-20230614132413-d125d8407c3b
 )

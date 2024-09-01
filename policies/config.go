@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
 var TriggerTypeAliasMap = map[string]string{
@@ -41,21 +43,35 @@ func ParsePolicyFile(reader io.Reader) (*Policy, error) {
 		return nil, err
 	}
 
-	if !policy.ValidatePolicy() {
-		return nil, fmt.Errorf("unable to validate policy")
+	policy.Hash = CalculateHash(buffer)
+	if len(policy.Type) > 0 && len(policy.Target) > 0 {
+		logging.Log.Infof("Parsing policy target: '%s' as '%s'", policy.Target, policy.Type)
+		switch strings.ToLower(policy.Type) {
+		case "hosts":
+			if err := ParsePolicyHostsRule(&policy); err != nil {
+				return nil, err
+			}
+		case "rpz":
+			if err := ParsePolicyRpzRule(&policy); err != nil {
+				return nil, err
+			}
+		case "abp":
+			if err := ParsePolicyAbpRule(&policy); err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	policy.Hash = CalculateHash(buffer)
 	return &policy, nil
 }
 
-func (p *Policy) ValidatePolicy() bool {
+func (p *Policy) ValidatePolicy() (bool, error) {
 	if p == nil || len(p.Name) <= 0 {
-		return false
+		return false, fmt.Errorf("policy name '%s' is undefined or invalid", p.Name)
 	}
 
 	if p.Version != CurrentPolicyVersion {
-		return false
+		return false, fmt.Errorf("policy version '%s' does not match the current version '%s'", p.Version, CurrentPolicyVersion)
 	}
 
 	rules := make([]PolicyRule, 0)
@@ -66,11 +82,11 @@ func (p *Policy) ValidatePolicy() bool {
 	}
 
 	if len(rules) <= 0 {
-		return false
+		return false, fmt.Errorf("policy has none or only empty rules")
 	}
 
 	p.Rules = rules
-	return true
+	return true, nil
 }
 
 func CalculateHash(data []byte) string {

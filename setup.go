@@ -1,28 +1,35 @@
-package rpz
+package consulrpz
 
 import (
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/hashicorp/consul/api"
+	"github.com/mwantia/coredns-consulrpz-plugin/logging"
+	"github.com/mwantia/coredns-consulrpz-plugin/metrics"
+	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
+type ConsulRpzPlugin struct {
+	Next     plugin.Handler
+	Cfg      *ConsulRpzConfig
+	Consul   *api.Client
+	Policies []policies.Policy
+}
+
 func init() {
-	plugin.Register("rpz", setup)
+	plugin.Register("consulrpz", setup)
 }
 
 func setup(c *caddy.Controller) error {
 	c.OnStartup(func() error {
-		prometheus.MustRegister(metricsRpzRequestDurationSeconds)
-		prometheus.MustRegister(metricsQueryRequestsTotal)
-		prometheus.MustRegister(metricsPolicyExecutionTime)
-		prometheus.MustRegister(metricsTriggerMatchCount)
-		return nil
+		return metrics.Register()
 	})
 
 	plug, err := CreatePlugin(c)
 	if err != nil {
-		return plugin.Error("rpz", err)
+		logging.Log.Errorf("%v", err)
+		return plugin.Error("consulrpz", err)
 	}
 
 	dnsserver.GetConfig(c).AddPlugin(func(next plugin.Handler) plugin.Handler {
