@@ -1,4 +1,4 @@
-package triggers
+package matches
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func ProcessQTypeData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchQTypeTrigger(state request.Request, ctx context.Context, data QTypeData) (bool, error) {
+func MatchQType(state request.Request, ctx context.Context, data QTypeData) (bool, error) {
 	qtype := state.QType()
 
 	for _, t := range data.Types {

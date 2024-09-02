@@ -10,24 +10,22 @@ type Policy struct {
 	Version  string       `json:"version"`
 	Priority *int         `json:"priority,omitempty"`
 	Rules    []PolicyRule `json:"rules"`
-	Target   string       `json:"target,omitempty"`
-	Type     string       `json:"type,omitempty"`
 	Hash     string       `json:"-"`
 }
 
 type PolicyRule struct {
-	Priority *int          `json:"priority,omitempty"`
-	Triggers []RuleTrigger `json:"triggers"`
-	Actions  []RuleAction  `json:"actions"`
+	Priority  *int           `json:"priority,omitempty"`
+	Matches   []RuleMatch    `json:"matches"`
+	Responses []RuleResponse `json:"responses"`
 }
 
-type RuleTrigger struct {
+type RuleMatch struct {
 	Type  string          `json:"type"`
 	Value json.RawMessage `json:"value,omitempty"`
 	Data  interface{}     `json:"-"`
 }
 
-type RuleAction struct {
+type RuleResponse struct {
 	Type  string          `json:"type"`
 	Value json.RawMessage `json:"value,omitempty"`
 }

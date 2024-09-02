@@ -43,25 +43,25 @@ func CreatePlugin(c *caddy.Controller) (*ConsulRpzPlugin, error) {
 	return p, nil
 }
 
-func LoadConsulKVPrefix(p *ConsulRpzPlugin) error {
-	logging.Log.Infof("Load prefixes from arguments: %s", p.Cfg.Arguments)
+func LoadConsulKVPrefix(plug *ConsulRpzPlugin) error {
+	logging.Log.Infof("Load prefixes from arguments: %s", plug.Cfg.Arguments)
 	// Each arguments passed onto consulrpz will be handled as prefix
-	for _, prefix := range p.Cfg.Arguments {
-		pairs, _, err := consul.GetConsulKVPairs(p.Consul, prefix)
+	for _, prefix := range plug.Cfg.Arguments {
+		pairs, _, err := consul.GetConsulKVPairs(plug.Consul, prefix)
 		if err != nil {
 			return err
 		}
 
-		if err := ParseConsulKVPairs(p, pairs); err != nil {
+		if err := ParseConsulKVPairs(plug, pairs); err != nil {
 			return err
 		}
 
-		if p.Cfg.Watch {
+		if plug.Cfg.Watch {
 			logging.Log.Infof("Watching prefix '%s' for new changes/updates", prefix)
 			// Only watch if the config has been set to true
-			if err := consul.WatchConsulKVPrefix(p.Cfg.Address, p.Cfg.Token, prefix, func(watchpairs api.KVPairs) error {
+			if err := consul.WatchConsulKVPrefix(plug.Cfg.Address, plug.Cfg.Token, prefix, func(watchpairs api.KVPairs) error {
 				logging.Log.Debugf("New update for prefix '%s'", prefix)
-				return ParseConsulKVPairs(p, watchpairs)
+				return ParseConsulKVPairs(plug, watchpairs)
 			}); err != nil {
 				return err
 			}
@@ -71,15 +71,19 @@ func LoadConsulKVPrefix(p *ConsulRpzPlugin) error {
 	return nil
 }
 
-func ParseConsulKVPairs(p *ConsulRpzPlugin, pairs api.KVPairs) error {
+func ParseConsulKVPairs(plug *ConsulRpzPlugin, pairs api.KVPairs) error {
 	for _, kv := range pairs {
 
 		policy, err := ParseConsulKVPair(kv)
 		if err != nil {
-			return err
+			logging.Log.Warningf("Unable to parse key '%s' to policy: %v", kv.Key, err)
+			continue
 		}
 
-		UpdateNamedPolicies(p, policy)
+		if err := UpdateNamedPolicies(plug, policy); err != nil {
+			logging.Log.Warningf("Unable to update policy '%s': %v", policy.Name, err)
+			continue
+		}
 	}
 
 	return nil
@@ -111,14 +115,12 @@ func UpdateNamedPolicies(p *ConsulRpzPlugin, policy *policies.Policy) error {
 		if p.Policies[i].Name == policy.Name {
 
 			logging.Log.Debugf("Checking hash for policy '%s':", policy.Name)
-			logging.Log.Debugf("  Hash1: %s", p.Policies[i].Hash)
-			logging.Log.Debugf("  Hash2: %s", policy.Hash)
+			logging.Log.Debugf("  Hash1: [%s]", p.Policies[i].Hash)
+			logging.Log.Debugf("  Hash2: [%s]", policy.Hash)
 
 			if p.Policies[i].Hash != policy.Hash {
 				p.Policies[i].Priority = policy.Priority
 				p.Policies[i].Rules = policy.Rules
-				p.Policies[i].Target = policy.Target
-				p.Policies[i].Type = policy.Type
 				p.Policies[i].Hash = policy.Hash
 
 				logging.Log.Debugf("Policy '%s' updated", policy.Name)
@@ -130,5 +132,6 @@ func UpdateNamedPolicies(p *ConsulRpzPlugin, policy *policies.Policy) error {
 
 	logging.Log.Infof("Policy '%s' added to the list with hash ['%s']", policy.Name, policy.Hash)
 	p.Policies = append(p.Policies, *policy)
+
 	return nil
 }

@@ -15,6 +15,11 @@ import (
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
+type TestData struct {
+	Name  string
+	Match string
+}
+
 func TestRPZ(tst *testing.T) {
 	OverwriteStdOut()
 	clog.D.Set()
@@ -32,24 +37,26 @@ func TestRPZ(tst *testing.T) {
 		tst.Errorf("Unable to get config: %v", err)
 	}
 
-	tests := []string{
-		"example.com",
+	tests := []TestData{
+		{
+			Name:  "pixels.ai",
+			Match: "0.0.0.0",
+		},
 	}
 
 	time.Sleep(1000)
 	RunTests(tst, plug, tests)
 }
 
-func RunTests(tst *testing.T, plug *ConsulRpzPlugin, tests []string) {
+func RunTests(tst *testing.T, plug *ConsulRpzPlugin, tests []TestData) {
 	ctx := context.TODO()
-	match := "1.2.3.4"
 
 	for _, tc := range tests {
-		tst.Run("Domain: "+tc, func(t *testing.T) {
+		tst.Run("Domain: "+tc.Name, func(t *testing.T) {
 			logging.Log.Debugf("Testing query '%s'", tc)
 
 			req := new(dns.Msg)
-			req.SetQuestion(dns.Fqdn(tc), dns.TypeA)
+			req.SetQuestion(dns.Fqdn(tc.Name), dns.TypeA)
 			rec := dnstest.NewRecorder(&test.ResponseWriter{})
 
 			code, err := plug.ServeDNS(ctx, rec, req)
@@ -65,10 +72,10 @@ func RunTests(tst *testing.T, plug *ConsulRpzPlugin, tests []string) {
 			address := answer.(*dns.A).A.String()
 
 			logging.Log.Infof("Received code '%v', no errors", code)
-			logging.Log.Infof("Answer to match '%s' with expected answer '%s'", address, match)
+			logging.Log.Infof("Answer to match '%s' with expected answer '%s'", address, tc.Match)
 
-			if address != match {
-				tst.Errorf("Expected '%s', but received '%s'", match, address)
+			if address != tc.Match {
+				tst.Errorf("Expected '%s', but received '%s'", tc.Match, address)
 			}
 		})
 	}

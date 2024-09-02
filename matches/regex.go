@@ -1,4 +1,4 @@
-package triggers
+package matches
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func ProcessRegexData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchRegexTrigger(state request.Request, ctx context.Context, data RegexData) (bool, error) {
+func MatchRegex(state request.Request, ctx context.Context, data RegexData) (bool, error) {
 
 	qname := state.Name()
 	for _, entry := range data.Entries {

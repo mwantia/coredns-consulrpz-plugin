@@ -1,4 +1,4 @@
-package triggers
+package matches
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func ProcessCidrData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchCidrTrigger(state request.Request, ctx context.Context, data CidrData) (bool, error) {
+func MatchCidr(state request.Request, ctx context.Context, data CidrData) (bool, error) {
 	ip := state.IP()
 	clientIP := net.ParseIP(ip)
 	if clientIP == nil {

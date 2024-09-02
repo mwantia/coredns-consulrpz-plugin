@@ -12,81 +12,83 @@ import (
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 	"github.com/mwantia/coredns-consulrpz-plugin/metrics"
 	"github.com/mwantia/coredns-consulrpz-plugin/policies"
+	"github.com/mwantia/coredns-consulrpz-plugin/responses"
 	"github.com/mwantia/coredns-consulrpz-plugin/runtime"
 )
 
-func (p ConsulRpzPlugin) Name() string { return "consulrpz" }
+func (plug ConsulRpzPlugin) Name() string { return "consulrpz" }
 
-func (p ConsulRpzPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
-	state := request.Request{W: w, Req: r}
+func (plug ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWriter, msg *dns.Msg) (int, error) {
+	state := request.Request{W: writer, Req: msg}
 	qtype := state.QType()
 	qname := dns.Fqdn(state.Name())
 
 	var policy *policies.Policy
-	var response *runtime.Response
+	var response *responses.PolicyResponse
 	var err error
 
 	start := time.Now()
-	switch strings.ToLower(p.Cfg.Execution) {
+	execution := strings.ToLower(plug.Cfg.Execution)
+	switch execution {
 	case "parallel":
-		policy, response, err = runtime.HandlePoliciesParallel(state, ctx, r, p.Policies)
+		policy, response, err = runtime.HandlePoliciesParallel(state, ctx, plug.Policies)
 	case "sequence":
-		policy, response, err = runtime.HandlePoliciesSequence(state, ctx, r, p.Policies)
+		policy, response, err = runtime.HandlePoliciesSequence(state, ctx, plug.Policies)
 	}
 	duration := time.Since(start).Seconds()
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		logging.Log.Errorf("Unable to handle request for '%s': %s", qname, err)
 
-		p.SetQueryStatus(ctx, qtype, metrics.QueryStatusError, duration, policy)
+		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusError, duration, policy)
 		return dns.RcodeServerFailure, err
 	}
 
 	if policy == nil || response == nil {
-		p.SetQueryStatus(ctx, qtype, metrics.QueryStatusNoMatch, duration, policy)
-		return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
+		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusNoMatch, duration, policy)
+		return plugin.NextOrFailure("consulrpz", plug.Next, ctx, writer, msg)
 	}
 
 	if response.Fallthrough {
-		p.SetQueryStatus(ctx, qtype, metrics.QueryStatusFallthrough, duration, policy)
-		return plugin.NextOrFailure(p.Name(), p.Next, ctx, w, r)
+		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusFallthrough, duration, policy)
+		return plugin.NextOrFailure("consulrpz", plug.Next, ctx, writer, msg)
 	}
 
 	if response.Deny {
-		p.SetQueryStatus(ctx, qtype, metrics.QueryStatusDeny, duration, policy)
+		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusDeny, duration, policy)
 		return HandleDenyPolicy(state, *policy)
 	}
 
-	msg := PrepareResponseReply(state.Req, true)
+	responsemsg := PrepareResponseReply(state.Req, true)
 	if response.Rcode != nil {
-		msg.Rcode = int(*response.Rcode)
+		responsemsg.Rcode = int(*response.Rcode)
 	}
-	msg.SetReply(r)
-	msg.Answer = response.Answers
-	WriteExtraPolicyHandle(msg, state, *policy)
+	responsemsg.SetReply(msg)
+	responsemsg.Answer = response.Records
+	WriteExtraPolicyHandle(responsemsg, state, *policy)
 
 	if response.Rcode != nil {
-		msg.Rcode = int(*response.Rcode)
+		responsemsg.Rcode = int(*response.Rcode)
 	} else {
-		if len(msg.Answer) > 0 {
-			msg.Rcode = dns.RcodeSuccess
+		if len(responsemsg.Answer) > 0 {
+			responsemsg.Rcode = dns.RcodeSuccess
 		} else {
-			msg.Rcode = dns.RcodeNameError
+			responsemsg.Rcode = dns.RcodeNameError
 		}
 	}
 
-	if err := w.WriteMsg(msg); err != nil {
+	if err := writer.WriteMsg(responsemsg); err != nil {
 		logging.Log.Errorf("Unable to send response for '%s': %s", qname, err)
 
-		p.SetQueryStatus(ctx, qtype, metrics.QueryStatusError, duration, policy)
+		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusError, duration, policy)
 		return dns.RcodeServerFailure, err
 	}
 
-	p.SetQueryStatus(ctx, qtype, metrics.QueryStatusSuccess, duration, policy)
-	return msg.Rcode, nil
+	plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusSuccess, duration, policy)
+	return responsemsg.Rcode, nil
 }
 
-func (p ConsulRpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, status string, duration float64, policy *policies.Policy) {
+func (plug ConsulRpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, status string, duration float64, policy *policies.Policy) {
 	name := ""
 	if policy != nil {
 		name = policy.Name
@@ -95,5 +97,5 @@ func (p ConsulRpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, statu
 	metrics.MetricRequestDurationSeconds(status, duration)
 	metrics.MetricQueryRequestsTotal(status, name, qtype)
 
-	p.SetMetadataQueryStatus(ctx, status)
+	plug.SetMetadataQueryStatus(ctx, status)
 }

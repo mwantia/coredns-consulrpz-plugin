@@ -1,4 +1,4 @@
-package triggers
+package matches
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func ProcessTimeData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchTimeTrigger(state request.Request, ctx context.Context, data TimeData) (bool, error) {
+func MatchTime(state request.Request, ctx context.Context, data TimeData) (bool, error) {
 	now := time.Now()
 
 	for _, timerange := range data.TimeRanges {

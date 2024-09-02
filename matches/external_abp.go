@@ -1,18 +1,15 @@
-package policies
+package matches
 
 import (
 	"bufio"
+	"io"
 	"strings"
 
+	"github.com/mwantia/coredns-consulrpz-plugin/data"
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
-func ParsePolicyAbpRule(policy *Policy) error {
-	reader, err := GetPolicyTargetReader(policy.Target)
-	if err != nil {
-		return err
-	}
-
+func ParseAbpMatches(reader io.Reader, trie *data.Trie) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

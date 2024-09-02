@@ -1,4 +1,4 @@
-package triggers
+package matches
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func ProcessCronData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchCronTrigger(state request.Request, ctx context.Context, data CronData) (bool, error) {
+func MatchCron(state request.Request, ctx context.Context, data CronData) (bool, error) {
 	now := time.Now()
 
 	for _, schedule := range data.Schedule {

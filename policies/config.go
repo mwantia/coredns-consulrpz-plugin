@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
-var TriggerTypeAliasMap = map[string]string{
+var MatchTypeAliasMap = map[string]string{
 	"name-regex":   "regex",
 	"qname-regex":  "regex",
 	"domain-regex": "regex",
@@ -26,8 +24,14 @@ var TriggerTypeAliasMap = map[string]string{
 	"client-ip":  "cidr",
 }
 
-var ActionTypeAliasMap = map[string]string{
+var ResponseTypeAliasMap = map[string]string{
 	"rcode": "code",
+
+	"any":              "inaddr_any",
+	"loopback":         "inaddr_loopback",
+	"broadcast":        "inaddr_broadcast",
+	"inaddr6_any":      "inaddr_any",
+	"inaddr6_loopback": "inaddr_loopback",
 }
 
 func ParsePolicyFile(reader io.Reader) (*Policy, error) {
@@ -44,40 +48,23 @@ func ParsePolicyFile(reader io.Reader) (*Policy, error) {
 	}
 
 	policy.Hash = CalculateHash(buffer)
-	if len(policy.Type) > 0 && len(policy.Target) > 0 {
-		logging.Log.Infof("Parsing policy target: '%s' as '%s'", policy.Target, policy.Type)
-		switch strings.ToLower(policy.Type) {
-		case "hosts":
-			if err := ParsePolicyHostsRule(&policy); err != nil {
-				return nil, err
-			}
-		case "rpz":
-			if err := ParsePolicyRpzRule(&policy); err != nil {
-				return nil, err
-			}
-		case "abp":
-			if err := ParsePolicyAbpRule(&policy); err != nil {
-				return nil, err
-			}
-		}
-	}
 
 	return &policy, nil
 }
 
-func (p *Policy) ValidatePolicy() (bool, error) {
-	if p == nil || len(p.Name) <= 0 {
-		return false, fmt.Errorf("policy name '%s' is undefined or invalid", p.Name)
+func (policy *Policy) ValidatePolicy() (bool, error) {
+	if policy == nil || len(policy.Name) <= 0 {
+		return false, fmt.Errorf("policy name '%s' is undefined or invalid", policy.Name)
 	}
 
-	if p.Version != CurrentPolicyVersion {
-		return false, fmt.Errorf("policy version '%s' does not match the current version '%s'", p.Version, CurrentPolicyVersion)
+	if policy.Version != CurrentPolicyVersion {
+		return false, fmt.Errorf("policy version '%s' does not match the current version '%s'", policy.Version, CurrentPolicyVersion)
 	}
 
 	rules := make([]PolicyRule, 0)
-	for _, r := range p.Rules {
-		if len(r.Triggers) > 0 && len(r.Actions) > 0 {
-			rules = append(rules, r)
+	for _, rule := range policy.Rules {
+		if len(rule.Matches) > 0 && len(rule.Responses) > 0 {
+			rules = append(rules, rule)
 		}
 	}
 
@@ -85,7 +72,7 @@ func (p *Policy) ValidatePolicy() (bool, error) {
 		return false, fmt.Errorf("policy has none or only empty rules")
 	}
 
-	p.Rules = rules
+	policy.Rules = rules
 	return true, nil
 }
 
@@ -94,18 +81,18 @@ func CalculateHash(data []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (trigger RuleTrigger) GetAliasType() string {
-	t := strings.ReplaceAll(strings.ToLower(trigger.Type), " ", "-")
-	if alias, exist := TriggerTypeAliasMap[t]; exist {
+func (match RuleMatch) GetAliasType() string {
+	t := strings.ReplaceAll(strings.ToLower(match.Type), " ", "-")
+	if alias, exist := MatchTypeAliasMap[t]; exist {
 		return alias
 	}
 
 	return t
 }
 
-func (action RuleAction) GetAliasType() string {
-	t := strings.ToLower(action.Type)
-	if alias, exist := ActionTypeAliasMap[t]; exist {
+func (response RuleResponse) GetAliasType() string {
+	t := strings.ToLower(response.Type)
+	if alias, exist := ResponseTypeAliasMap[t]; exist {
 		return alias
 	}
 

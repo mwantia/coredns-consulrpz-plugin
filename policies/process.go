@@ -1,11 +1,11 @@
 package policies
 
-import "github.com/mwantia/coredns-consulrpz-plugin/triggers"
+import "github.com/mwantia/coredns-consulrpz-plugin/matches"
 
-func (p Policy) ProcessPolicyData() error {
-	for i := range p.Rules {
-		for j := range p.Rules[i].Triggers {
-			trigger := &p.Rules[i].Triggers[j]
+func (policy Policy) ProcessPolicyData() error {
+	for i := range policy.Rules {
+		for j := range policy.Rules[i].Matches {
+			trigger := &policy.Rules[i].Matches[j]
 			var err error
 
 			if trigger.Data, err = trigger.ProcessData(); err != nil {
@@ -17,26 +17,29 @@ func (p Policy) ProcessPolicyData() error {
 	return nil
 }
 
-func (t RuleTrigger) ProcessData() (interface{}, error) {
-	alias := t.GetAliasType()
+func (match RuleMatch) ProcessData() (interface{}, error) {
+	alias := match.GetAliasType()
 	switch alias {
 	case "type":
-		return triggers.ProcessQTypeData(t.Value)
+		return matches.ProcessQTypeData(match.Value)
 
 	case "cidr":
-		return triggers.ProcessCidrData(t.Value)
+		return matches.ProcessCidrData(match.Value)
 
 	case "name":
-		return triggers.ProcessQNameData(t.Value)
+		return matches.ProcessQNameData(match.Value)
+
+	case "external":
+		return matches.ProcessExternalData(match.Value)
 
 	case "time":
-		return triggers.ProcessTimeData(t.Value)
+		return matches.ProcessTimeData(match.Value)
 
 	case "cron":
-		return triggers.ProcessCronData(t.Value)
+		return matches.ProcessCronData(match.Value)
 
 	case "regex":
-		return triggers.ProcessRegexData(t.Value)
+		return matches.ProcessRegexData(match.Value)
 	}
 
 	return nil, nil

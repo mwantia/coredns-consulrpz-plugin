@@ -204,6 +204,18 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
+6. `external`: Loads an external list and matches each parsed domain name as suffix
+  ```json
+  {
+    "type": "external",
+    "value": {
+      "target": "https://raw.githubusercontent.com/ph00lt0/blocklist/master/rpz-blocklist.txt",
+      "type": "rpz",
+      "refresh": "24h"
+    }
+  }
+  ```
+
 Triggers are handled in the following order: `type`, `name`, `cidr`, `time`, `cron`, `regex`.
 
 ## Supported Actions
