@@ -94,8 +94,10 @@ func (response *RuleResponse) GetPriority() int {
 			return 3
 		case "inaddr_loopback":
 			return 4
-		case "record":
+		case "inaddr_broadcast":
 			return 5
+		case "record":
+			return 6
 		}
 	}
 	return 1000

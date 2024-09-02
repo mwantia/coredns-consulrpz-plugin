@@ -12,7 +12,7 @@ This plugin enables CoreDNS to use custom Response Policy Zones (RPZ) for DNS fi
 
 - Use Consul KV as a backend for RPZ policies
 - Real-time policy updates via Consul KV
-- Support for various RPZ triggers and actions
+- Support for various RPZ matches and responses
 - Configurable policy priorities
 - Metrics for monitoring (compatible with Prometheus)
 
@@ -27,8 +27,8 @@ sequenceDiagram
     participant ConsulRPZ
     participant Consul
     participant PolicyHandler
-    participant TriggerHandler
-    participant ActionHandler
+    participant MatchHandler
+    participant ResponseHandler
 
     Client->>CoreDNS: DNS Query
     CoreDNS->>ConsulRPZ: ServeDNS()
@@ -36,13 +36,13 @@ sequenceDiagram
     Consul-->>ConsulRPZ: Return Policies
     ConsulRPZ->>PolicyHandler: HandlePoliciesParallel()
     loop For each Policy
-        PolicyHandler->>TriggerHandler: Check Triggers
-        alt Triggers Match
-            TriggerHandler-->>PolicyHandler: Triggers Matched
-            PolicyHandler->>ActionHandler: Execute Actions
-            ActionHandler-->>PolicyHandler: Action Result
-        else Triggers Don't Match
-            TriggerHandler-->>PolicyHandler: No Match
+        PolicyHandler->>MatchHandler: Check Matches
+        alt Matches Match
+            MatchHandler-->>PolicyHandler: Matches Matched
+            PolicyHandler->>ResponseHandler: Execute Response
+            ResponseHandler-->>PolicyHandler: Response Result
+        else Matches Don't Match
+            MatchHandler-->>PolicyHandler: No Match
         end
     end
     PolicyHandler-->>ConsulRPZ: Policy Result
@@ -95,7 +95,7 @@ consulrpz <prefix> {        # eg. dns/policies
 
 ## Policy Configuration
 
-Policies are written in JSON. Each policy either defines its own rules or uses a `target` to parse its entries as `trigger` and `action`:
+Policies are written in JSON. Each policy defines its own rules to parse its entries as `match` and `response`:
 
 ```json
 {
@@ -104,13 +104,13 @@ Policies are written in JSON. Each policy either defines its own rules or uses a
     "priority": 0,
     "rules": [
         {
-            "triggers": [
+            "matches": [
                 {
                     "type": "domain",
                     "value": ["example.com"]
                 }
             ],
-            "actions": [
+            "responses": [
                 {
                     "type": "deny"
                 }
@@ -122,11 +122,30 @@ Policies are written in JSON. Each policy either defines its own rules or uses a
 
 ```json
 {
-    "name": "RPZ Target Example",
+    "name": "Ph00lt0 RPZ Blocklist",
     "version": "1.0",
-    "priority": 0,
-    "target": "https://raw.githubusercontent.com/ph00lt0/blocklist/master/rpz-blocklist.txt",
-    "type": "rpz"
+    "priority": 500,
+    "rules": [
+        {
+            "matches": [
+                {
+                    "type": "external",
+                    "value": [
+                        {
+                            "target": "https://raw.githubusercontent.com/ph00lt0/blocklist/master/rpz-blocklist.txt",
+                            "type": "rpz",
+                            "refresh": "24h"
+                        }
+                    ]
+                }
+            ],
+            "responses": [
+                {
+                    "type": "inaddr_any"
+                }
+            ]
+        }
+    ]
 }
 ```
 
@@ -135,21 +154,16 @@ Policies are written in JSON. Each policy either defines its own rules or uses a
 - `name`:     Defines the bame of the policy
 - `version`:  The version used for this policy format (Must be set to `1.0` or omitted)
 - `priority`: Priority of the policy (Default: `1000`)
-- `target`:   Defines the target file or url (Must be set together with `type`)
-- `type`:     Defines the type used for parsing the target
-  - `rpz`:    Parses the target content as "rpz syntax file"
-  - `hosts`:  Parses the target content as simple "hosts syntax" (Currently not implemented)
-  - `abp`:    Parses the target content as "adblock-plus syntax" (Currently not implemented)
 - `rules`:    Set of array of policy rules defined for this policy
 
 ### Rule structure:
 
-- `triggers`: Array of conditions that trigger the rule
-- `actions`:  Array of actions to take when the rule is triggered
+- `matches`:   Array of conditions that match the rule
+- `responses`: Array of responses to reply with when the rule is triggered
 
-## Supported Triggers
+## Supported Matches
 
-Currently, the plugin supports the following trigger types:
+Currently, the plugin supports the following match-types:
 
 1. `type`: Matches query types
   ```json
@@ -159,15 +173,7 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-2. `name`: Matches domain names as suffix
-  ```json
-  {
-    "type": "name",
-    "value": ["example.com", "www.site.com"]
-  }
-  ```
-
-3. `cidr`: Matches IP-Adress ranges
+2. `cidr`: Matches IP-Adress ranges
   ```json
   {
     "type": "cidr",
@@ -175,7 +181,36 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-4. `time`: Matches time-frames with a start and end
+3. `name`: Matches domain names as suffix
+  ```json
+  {
+    "type": "name",
+    "value": ["example.com", "www.site.com"]
+  }
+  ```
+
+4. `external`: Loads an external list and matches each parsed domain name as suffix
+
+    - `target`:   Defines the target file or url (Must be set together with `type`)
+    - `type`:     Defines the type used for parsing the target
+       - `rpz`:    Parses the target content as "rpz syntax file"
+       - `hosts`:  Parses the target content as "hosts syntax" **(Currently not implemented)**
+       - `abp`:    Parses the target content as "adblock-plus syntax" **(Currently not implemented)**
+    - `refresh`:  Indicates how often the external list should be checked for updates **(Currently not implemented)**
+  ```json
+  {
+    "type": "external",
+    "value": [
+      {
+        "target": "https://raw.githubusercontent.com/ph00lt0/blocklist/master/rpz-blocklist.txt",
+        "type": "rpz",
+        "refresh": "24h"
+      }
+    ]
+  }
+  ```
+
+5. `time`: Matches time-frames with a start and end
   ```json
   {
     "type": "time",
@@ -188,7 +223,7 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-5. `cron`: Matches time-frames declared as cron
+6. `cron`: Matches time-frames declared as cron
   ```json
   {
     "type": "cron",
@@ -196,7 +231,7 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-5. `regex`: Matches domain names via regex
+7. `regex`: Matches domain names via regex
   ```json
   {
     "type": "regex",
@@ -204,21 +239,9 @@ Currently, the plugin supports the following trigger types:
   }
   ```
 
-6. `external`: Loads an external list and matches each parsed domain name as suffix
-  ```json
-  {
-    "type": "external",
-    "value": {
-      "target": "https://raw.githubusercontent.com/ph00lt0/blocklist/master/rpz-blocklist.txt",
-      "type": "rpz",
-      "refresh": "24h"
-    }
-  }
-  ```
+Matches are handled in the following order: `type`, `cidr`, `name`, `external`, `time`, `cron`, `regex`.
 
-Triggers are handled in the following order: `type`, `name`, `cidr`, `time`, `cron`, `regex`.
-
-## Supported Actions
+## Supported Responses
 
 The plugin supports the following action types:
 
@@ -260,7 +283,28 @@ The plugin supports the following action types:
    }
    ```
 
-Actions are handled in the following order: `deny`, `fallthrough`, `code`, `record`.
+5. `inaddr_any`: Returns a fixed DNS record to the address `0.0.0.0` or `::`
+   ```json
+   {
+     "type": "inaddr_any"
+   }
+   ```
+
+6. `inaddr_loopback`: Returns a fixed DNS record to the address `127.0.0.1` or `::1`
+   ```json
+   {
+     "type": "inaddr_loopback"
+   }
+   ```
+
+7. `inaddr_broadcast`: Returns a fixed DNS record to the address `255.255.255.255`
+   ```json
+   {
+     "type": "inaddr_broadcast"
+   }
+   ```
+
+Responses are handled in the following order: `deny`, `fallthrough`, `code`, `record`, `inaddr_any`, `inaddr_loopback`, `inaddr_broadcast`.
 
 ## Additional TXT
 
