@@ -14,7 +14,7 @@ import (
 )
 
 type ExternalData struct {
-	Trie *data.Trie
+	Trie *data.OldTrie
 }
 
 func ProcessExternalData(value json.RawMessage) (interface{}, error) {
@@ -27,7 +27,7 @@ func ProcessExternalData(value json.RawMessage) (interface{}, error) {
 		return nil, err
 	}
 
-	trie := data.NewRootTrie()
+	trie := data.OldRootTrie()
 
 	for _, target := range targets {
 		// We skip targets that can't be resolved
