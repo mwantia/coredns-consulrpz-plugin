@@ -152,6 +152,7 @@ Policies are written in JSON. Each policy defines its own rules to parse its ent
 ### Policy structure:
 
 - `name`:     Defines the bame of the policy
+- `disabled`: Indicates that the policy will not be used for matching (Default: `false`)
 - `version`:  The version used for this policy format (Must be set to `1.0` or omitted)
 - `priority`: Priority of the policy (Default: `1000`)
 - `rules`:    Set of array of policy rules defined for this policy
@@ -283,28 +284,36 @@ The plugin supports the following action types:
    }
    ```
 
-5. `inaddr_any`: Returns a fixed DNS record to the address `0.0.0.0` or `::`
+5. `extra`: Returns a extra `TXT` entry, if possible
+   ```json
+   {
+     "type": "extra",
+     "value": ["Blocked by rpz policy"]
+   }
+   ```
+
+6. `inaddr_any`: Returns a fixed DNS record to the address `0.0.0.0` or `::`
    ```json
    {
      "type": "inaddr_any"
    }
    ```
 
-6. `inaddr_loopback`: Returns a fixed DNS record to the address `127.0.0.1` or `::1`
+7. `inaddr_loopback`: Returns a fixed DNS record to the address `127.0.0.1` or `::1`
    ```json
    {
      "type": "inaddr_loopback"
    }
    ```
 
-7. `inaddr_broadcast`: Returns a fixed DNS record to the address `255.255.255.255`
+8. `inaddr_broadcast`: Returns a fixed DNS record to the address `255.255.255.255`
    ```json
    {
      "type": "inaddr_broadcast"
    }
    ```
 
-Responses are handled in the following order: `deny`, `fallthrough`, `code`, `record`, `inaddr_any`, `inaddr_loopback`, `inaddr_broadcast`.
+Responses are handled in the following order: `deny`, `fallthrough`, `code`, `record`, `extra`, `inaddr_any`, `inaddr_loopback`, `inaddr_broadcast`.
 
 ## Additional TXT
 

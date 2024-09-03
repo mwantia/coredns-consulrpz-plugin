@@ -7,12 +7,11 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
-func AppendRecordToResponse(state request.Request, rresponse policies.RuleResponse, response *PolicyResponse) error {
+func AppendRecordToResponse(state request.Request, value json.RawMessage, response *PolicyResponse) error {
 	var record PolicyRecord
-	if err := json.Unmarshal(rresponse.Value, &record); err != nil {
+	if err := json.Unmarshal(value, &record); err != nil {
 		return err
 	}
 

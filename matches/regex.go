@@ -45,17 +45,12 @@ func MatchRegex(state request.Request, ctx context.Context, data RegexData) (boo
 
 	qname := state.Name()
 	for _, entry := range data.Entries {
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		default:
-			if entry.Pattern == qname {
-				return true, nil
-			}
+		if entry.Pattern == qname {
+			return true, nil
+		}
 
-			if entry.Regex.MatchString(qname) {
-				return true, nil
-			}
+		if entry.Regex.MatchString(qname) {
+			return true, nil
 		}
 	}
 

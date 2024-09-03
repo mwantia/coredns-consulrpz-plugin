@@ -14,11 +14,11 @@ var metricsRpzRequestDurationSeconds = prometheus.NewHistogramVec(prometheus.His
 	Name:      "request_duration_seconds",
 	Help:      "Histogram of the time (in seconds) each RPZ request took.",
 	Buckets:   []float64{.001, .002, .005, .01, .02, .05, .1, .2, .5, 1},
-}, []string{"status"})
+}, []string{"server", "status"})
 
-func MetricRequestDurationSeconds(status string, duration float64) {
+func MetricRequestDurationSeconds(server, status string, duration float64) {
 	s := strings.ToUpper(status)
-	metricsRpzRequestDurationSeconds.WithLabelValues(s).Observe(duration)
+	metricsRpzRequestDurationSeconds.WithLabelValues(server, s).Observe(duration)
 }
 
 var metricsQueryRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -26,13 +26,13 @@ var metricsQueryRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Subsystem: MetricsSubsystem,
 	Name:      "query_requests_total",
 	Help:      "Count the amount of queries received as request by the plugin.",
-}, []string{"status", "policy", "type"})
+}, []string{"server", "status", "policy", "type"})
 
-func MetricQueryRequestsTotal(status, policy string, qtype uint16) {
+func MetricQueryRequestsTotal(server, status, policy string, qtype uint16) {
 	t := dns.TypeToString[qtype]
 	s := strings.ToUpper(status)
 	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
-	metricsQueryRequestsTotal.WithLabelValues(s, p, t).Inc()
+	metricsQueryRequestsTotal.WithLabelValues(server, s, p, t).Inc()
 }
 
 var metricsPolicyExecutionTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -41,11 +41,11 @@ var metricsPolicyExecutionTime = prometheus.NewHistogramVec(prometheus.Histogram
 	Name:      "policy_execution_time_seconds",
 	Help:      "Histogram of the time (in seconds) each policy execution took.",
 	Buckets:   []float64{.0001, .0005, .001, .005, .01, .05, .1, .5, 1},
-}, []string{"policy"})
+}, []string{"server", "policy"})
 
-func MetricPolicyExecutionTime(policy string, duration float64) {
+func MetricPolicyExecutionTime(server, policy string, duration float64) {
 	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
-	metricsPolicyExecutionTime.WithLabelValues(p).Observe(duration)
+	metricsPolicyExecutionTime.WithLabelValues(server, p).Observe(duration)
 }
 
 var metricsTriggerMatchCount = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -53,9 +53,9 @@ var metricsTriggerMatchCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Subsystem: MetricsSubsystem,
 	Name:      "trigger_match_total",
 	Help:      "Count of trigger matches per policy.",
-}, []string{"policy", "trigger"})
+}, []string{"server", "policy", "trigger"})
 
-func MetricTriggerMatchCount(policy, trigger string) {
+func MetricTriggerMatchCount(server, policy, trigger string) {
 	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
-	metricsTriggerMatchCount.WithLabelValues(p, trigger).Inc()
+	metricsTriggerMatchCount.WithLabelValues(server, p, trigger).Inc()
 }

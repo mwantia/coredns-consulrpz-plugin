@@ -26,6 +26,7 @@ var MatchTypeAliasMap = map[string]string{
 
 var ResponseTypeAliasMap = map[string]string{
 	"rcode": "code",
+	"allow": "fallthrough",
 
 	"any":              "inaddr_any",
 	"loopback":         "inaddr_loopback",

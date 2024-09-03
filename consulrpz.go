@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/coredns/coredns/plugin"
+	cmetrics "github.com/coredns/coredns/plugin/metrics"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
@@ -19,7 +20,7 @@ import (
 func (plug ConsulRpzPlugin) Name() string { return "consulrpz" }
 
 func (plug ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWriter, msg *dns.Msg) (int, error) {
-	state := request.Request{W: writer, Req: msg}
+	state := request.Request{W: writer, Req: msg.Copy()}
 	qtype := state.QType()
 	qname := dns.Fqdn(state.Name())
 
@@ -46,12 +47,12 @@ func (plug ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWri
 
 	if policy == nil || response == nil {
 		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusNoMatch, duration, policy)
-		return plugin.NextOrFailure("consulrpz", plug.Next, ctx, writer, msg)
+		return plugin.NextOrFailure(plug.Name(), plug.Next, ctx, writer, state.Req)
 	}
 
 	if response.Fallthrough {
 		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusFallthrough, duration, policy)
-		return plugin.NextOrFailure("consulrpz", plug.Next, ctx, writer, msg)
+		return plugin.NextOrFailure(plug.Name(), plug.Next, ctx, writer, state.Req)
 	}
 
 	if response.Deny {
@@ -63,9 +64,9 @@ func (plug ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWri
 	if response.Rcode != nil {
 		responsemsg.Rcode = int(*response.Rcode)
 	}
-	responsemsg.SetReply(msg)
+	responsemsg.SetReply(state.Req)
 	responsemsg.Answer = response.Records
-	WriteExtraPolicyHandle(responsemsg, state, *policy)
+	responses.WriteExtraHandle(responsemsg, state, response.Extra)
 
 	if response.Rcode != nil {
 		responsemsg.Rcode = int(*response.Rcode)
@@ -94,8 +95,9 @@ func (plug ConsulRpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, st
 		name = policy.Name
 	}
 
-	metrics.MetricRequestDurationSeconds(status, duration)
-	metrics.MetricQueryRequestsTotal(status, name, qtype)
+	server := cmetrics.WithServer(ctx)
+	metrics.MetricRequestDurationSeconds(server, status, duration)
+	metrics.MetricQueryRequestsTotal(server, status, name, qtype)
 
 	plug.SetMetadataQueryStatus(ctx, status)
 }

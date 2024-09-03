@@ -51,22 +51,17 @@ func MatchTime(state request.Request, ctx context.Context, data TimeData) (bool,
 	now := time.Now()
 
 	for _, timerange := range data.TimeRanges {
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		default:
-			year, month, day := now.Date()
+		year, month, day := now.Date()
 
-			start := time.Date(year, month, day, timerange.Start.Hour(), timerange.Start.Minute(), 0, 0, now.Location())
-			end := time.Date(year, month, day, timerange.End.Hour(), timerange.End.Minute(), 0, 0, now.Location())
+		start := time.Date(year, month, day, timerange.Start.Hour(), timerange.Start.Minute(), 0, 0, now.Location())
+		end := time.Date(year, month, day, timerange.End.Hour(), timerange.End.Minute(), 0, 0, now.Location())
 
-			if end.Before(start) {
-				end = end.Add(24 * time.Hour)
-			}
+		if end.Before(start) {
+			end = end.Add(24 * time.Hour)
+		}
 
-			if (now.After(start) || now.Equal(start)) && now.Before(end) {
-				return true, nil
-			}
+		if (now.After(start) || now.Equal(start)) && now.Before(end) {
+			return true, nil
 		}
 	}
 

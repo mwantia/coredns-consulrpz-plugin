@@ -11,7 +11,7 @@ type PolicyResponse struct {
 	Fallthrough bool     `json:"fallthrough"`
 	Rcode       *uint16  `json:"rcode"`
 	Records     []dns.RR `json:"records"`
-	Extras      []string `json:"extras"`
+	Extra       []string `json:"extra"`
 }
 
 type PolicyRecord struct {

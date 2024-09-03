@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
 func PrepareResponseRcode(request *dns.Msg, rcode int, recursionAvailable bool) *dns.Msg {
 	m := new(dns.Msg)
 	m.SetRcode(request, rcode)
-	m.Authoritative = true
+	m.Authoritative = false
 	m.RecursionAvailable = recursionAvailable
 
 	return m
@@ -23,24 +21,14 @@ func PrepareResponseRcode(request *dns.Msg, rcode int, recursionAvailable bool) 
 func PrepareResponseReply(request *dns.Msg, recursionAvailable bool) *dns.Msg {
 	m := new(dns.Msg)
 	m.SetReply(request)
-	m.Authoritative = true
+	m.Authoritative = false
 	m.RecursionAvailable = recursionAvailable
-
 	return m
 }
 
 func GetFileNameFromURL(url string) string {
 	parts := strings.Split(url, "/")
 	return parts[len(parts)-1]
-}
-
-func WriteExtraPolicyHandle(request *dns.Msg, state request.Request, policy policies.Policy) {
-	qname := dns.Fqdn(state.Name())
-
-	request.Extra = append(request.Extra, &dns.TXT{
-		Hdr: dns.RR_Header{Name: dns.Fqdn(qname), Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 3600},
-		Txt: []string{"Handled by RPZ policy - " + policy.Name},
-	})
 }
 
 func CalculateHash(data []byte) string {

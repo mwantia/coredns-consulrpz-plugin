@@ -10,8 +10,8 @@ import (
 
 func HandleResponse(state request.Request, ctx context.Context, rule policies.PolicyRule) (*PolicyResponse, error) {
 	response := &PolicyResponse{}
-	for _, rresponse := range rule.Responses {
-		alias := rresponse.GetAliasType()
+	for _, rr := range rule.Responses {
+		alias := rr.GetAliasType()
 
 		switch alias {
 		case "deny":
@@ -20,19 +20,24 @@ func HandleResponse(state request.Request, ctx context.Context, rule policies.Po
 		case "fallthrough":
 			response.Fallthrough = true
 
+		case "extra":
+			if err := AppendExtraToResponse(state, rr.Value, response); err != nil {
+				return response, err
+			}
+
 		case "code":
-			if err := AppendRcodeToResponse(state, rresponse, response); err != nil {
+			if err := AppendRcodeToResponse(state, rr.Value, response); err != nil {
 				return response, err
 			}
 
 		case "record":
-			if err := AppendRecordToResponse(state, rresponse, response); err != nil {
+			if err := AppendRecordToResponse(state, rr.Value, response); err != nil {
 				return response, err
 			}
 		}
 
 		if strings.HasPrefix(alias, "inaddr_") {
-			if err := AppendInAddrToResponse(state, rresponse, response); err != nil {
+			if err := AppendInAddrToResponse(state, alias, response); err != nil {
 				return response, err
 			}
 		}

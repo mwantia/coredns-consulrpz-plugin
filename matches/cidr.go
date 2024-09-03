@@ -42,15 +42,10 @@ func MatchCidr(state request.Request, ctx context.Context, data CidrData) (bool,
 	}
 
 	for _, network := range data.Networks {
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		default:
-			logging.Log.Debugf("Checking cidr '%s' with client '%s'", network, clientIP)
+		logging.Log.Debugf("Checking cidr '%s' with client '%s'", network, clientIP)
 
-			if network.Contains(clientIP) {
-				return true, nil
-			}
+		if network.Contains(clientIP) {
+			return true, nil
 		}
 	}
 

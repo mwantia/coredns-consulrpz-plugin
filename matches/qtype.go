@@ -32,32 +32,27 @@ func MatchQType(state request.Request, ctx context.Context, data QTypeData) (boo
 	qtype := state.QType()
 
 	for _, t := range data.Types {
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		default:
-			switch qtype {
-			case dns.TypeA:
-				return t == "A", nil
+		switch qtype {
+		case dns.TypeA:
+			return t == "A", nil
 
-			case dns.TypeAAAA:
-				return t == "AAAA", nil
+		case dns.TypeAAAA:
+			return t == "AAAA", nil
 
-			case dns.TypeCNAME:
-				return t == "CNAME", nil
+		case dns.TypeCNAME:
+			return t == "CNAME", nil
 
-			case dns.TypeHTTPS:
-				return t == "HTTPS", nil
+		case dns.TypeHTTPS:
+			return t == "HTTPS", nil
 
-			case dns.TypeTXT:
-				return t == "TXT", nil
+		case dns.TypeTXT:
+			return t == "TXT", nil
 
-			case dns.TypeSOA:
-				return t == "SOA", nil
+		case dns.TypeSOA:
+			return t == "SOA", nil
 
-			case dns.TypeNS:
-				return t == "NS", nil
-			}
+		case dns.TypeNS:
+			return t == "NS", nil
 		}
 	}
 

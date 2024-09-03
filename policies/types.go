@@ -7,6 +7,7 @@ const DefaultPolicyPriority = 1000
 
 type Policy struct {
 	Name     string       `json:"name"`
+	Disabled bool         `json:"disabled"`
 	Version  string       `json:"version"`
 	Priority *int         `json:"priority,omitempty"`
 	Rules    []PolicyRule `json:"rules"`

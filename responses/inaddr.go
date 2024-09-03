@@ -5,19 +5,16 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
-	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 )
 
-func AppendInAddrToResponse(state request.Request, rresponse policies.RuleResponse, response *PolicyResponse) error {
-	alias := rresponse.GetAliasType()
-
+func AppendInAddrToResponse(state request.Request, aliastype string, response *PolicyResponse) error {
 	qname := dns.Fqdn(state.Name())
 	qtype := state.QType()
 	ttl := uint32(3600)
 
 	var rr dns.RR
 
-	switch alias {
+	switch aliastype {
 	case "inaddr_any":
 		if qtype == dns.TypeAAAA {
 			rr = CreateDnsRecord(qname, dns.TypeAAAA, ttl, "::")
@@ -45,5 +42,5 @@ func AppendInAddrToResponse(state request.Request, rresponse policies.RuleRespon
 		return nil
 	}
 
-	return fmt.Errorf("no matching inaddr with the type '%s' found", rresponse.Type)
+	return fmt.Errorf("no matching inaddr with the type '%s' found", aliastype)
 }
