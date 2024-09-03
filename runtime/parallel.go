@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	cmetrics "github.com/coredns/coredns/plugin/metrics"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
@@ -18,6 +19,7 @@ func HandlePoliciesParallel(state request.Request, ctx context.Context, _policie
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	server := cmetrics.WithServer(ctx)
 	var wg sync.WaitGroup
 
 	resultChannel := make(chan struct {
@@ -27,16 +29,21 @@ func HandlePoliciesParallel(state request.Request, ctx context.Context, _policie
 	errorChannel := make(chan error, len(_policies))
 
 	for _, policy := range _policies {
+		if policy.Disabled {
+			logging.Log.Debugf("Policy '%s' is disabled and will be skipped", policy.Name)
+			continue
+		}
+
 		wg.Add(1)
 
 		go func(pol policies.Policy) {
 			defer wg.Done()
 
 			start := time.Now()
-			response, err := HandlePolicyResponse(state, ctx, policy)
+			response, err := HandlePolicyResponse(state, ctx, server, policy)
 			duration := time.Since(start).Seconds()
 
-			metrics.MetricPolicyExecutionTime(policy.Name, duration)
+			metrics.MetricPolicyExecutionTime(server, policy.Name, duration)
 
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {

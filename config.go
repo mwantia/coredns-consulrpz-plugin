@@ -119,6 +119,7 @@ func UpdateNamedPolicies(p *ConsulRpzPlugin, policy *policies.Policy) error {
 			logging.Log.Debugf("  Hash2: [%s]", policy.Hash)
 
 			if p.Policies[i].Hash != policy.Hash {
+				p.Policies[i].Disabled = policy.Disabled
 				p.Policies[i].Priority = policy.Priority
 				p.Policies[i].Rules = policy.Rules
 				p.Policies[i].Hash = policy.Hash
