@@ -8,7 +8,7 @@ import (
 	"github.com/mwantia/coredns-consulrpz-plugin/data"
 )
 
-func ParseHostsMatches(reader io.Reader, trie *data.OldTrie) error {
+func ParseHostsMatches(reader io.Reader, trie *data.Trie) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

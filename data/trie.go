@@ -1,11 +1,9 @@
 package data
 
-import (
-	"github.com/miekg/dns"
-)
+import "strings"
 
 type TrieNode struct {
-	Children map[byte]*TrieNode
+	Children map[string]*TrieNode
 	IsEnd    bool
 }
 
@@ -16,41 +14,35 @@ type Trie struct {
 func NewRootTrie() *Trie {
 	return &Trie{
 		Root: &TrieNode{
-			Children: make(map[byte]*TrieNode),
+			Children: make(map[string]*TrieNode),
 		},
 	}
 }
 
 func (t *Trie) Insert(name string) {
-	name = dns.Fqdn(name)
 	node := t.Root
-	for i := len(name) - 1; i >= 0; i-- {
-		char := name[i]
-		if char == '.' {
-			continue
-		}
-		if _, exists := node.Children[char]; !exists {
-			node.Children[char] = &TrieNode{
-				Children: make(map[byte]*TrieNode),
+	parts := strings.Split(strings.TrimSuffix(name, "."), ".")
+	for i := len(parts) - 1; i >= 0; i-- {
+		part := parts[i]
+		if _, exists := node.Children[part]; !exists {
+			node.Children[part] = &TrieNode{
+				Children: make(map[string]*TrieNode),
 			}
 		}
-		node = node.Children[char]
+		node = node.Children[part]
 	}
 	node.IsEnd = true
 }
 
 func (t *Trie) Search(name string) bool {
-	name = dns.Fqdn(name)
 	node := t.Root
-	for i := len(name) - 1; i >= 0; i-- {
-		char := name[i]
-		if char == '.' {
-			continue
-		}
-		if _, exists := node.Children[char]; !exists {
+	parts := strings.Split(strings.TrimSuffix(name, "."), ".")
+	for i := len(parts) - 1; i >= 0; i-- {
+		part := parts[i]
+		if _, exists := node.Children[part]; !exists {
 			return false
 		}
-		node = node.Children[char]
+		node = node.Children[part]
 		if node.IsEnd {
 			return true
 		}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/coredns/coredns/request"
 	"github.com/mwantia/coredns-consulrpz-plugin/matches"
-	"github.com/mwantia/coredns-consulrpz-plugin/metrics"
 	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 	"github.com/mwantia/coredns-consulrpz-plugin/responses"
 )
@@ -29,8 +28,10 @@ func HandlePolicyResponse(state request.Request, ctx context.Context, server str
 	return nil, nil
 }
 
-func HandlePolicyResponseRule(state request.Request, ctx context.Context, server string, policy policies.Policy,
-	rule policies.PolicyRule) (*responses.PolicyResponse, error) {
+func HandlePolicyResponseRule(state request.Request, ctx context.Context, server string, policy policies.Policy, rule policies.PolicyRule) (*responses.PolicyResponse, error) {
+	var err error
+	var result *matches.MatchResult
+
 	for _, match := range rule.Matches {
 		alias := match.GetAliasType()
 
@@ -39,18 +40,22 @@ func HandlePolicyResponseRule(state request.Request, ctx context.Context, server
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			default:
-				if handled, err := matches.HandleMatches(state, ctx, alias, match.Data); !handled || err != nil {
+				result, err = matches.HandleMatches(state, ctx, alias, match.Data)
+				if err != nil {
 					return nil, err
 				}
-
-				metrics.MetricTriggerMatchCount(server, policy.Name, match.GetAliasType())
+				if result != nil && !result.Handled {
+					return nil, nil
+				}
 			}
 		} else {
-			if handled, err := matches.HandleMatches(state, ctx, alias, match.Data); !handled || err != nil {
+			result, err = matches.HandleMatches(state, ctx, alias, match.Data)
+			if err != nil {
 				return nil, err
 			}
-
-			metrics.MetricTriggerMatchCount(server, policy.Name, alias)
+			if result != nil && !result.Handled {
+				return nil, nil
+			}
 		}
 	}
 
@@ -59,11 +64,11 @@ func HandlePolicyResponseRule(state request.Request, ctx context.Context, server
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			if response, err := responses.HandleResponse(state, ctx, rule); response != nil || err != nil {
+			if response, err := responses.HandleResponse(state, ctx, server, result, policy, rule); response != nil || err != nil {
 				return response, err
 			}
 		}
-	} else if response, err := responses.HandleResponse(state, ctx, rule); response != nil || err != nil {
+	} else if response, err := responses.HandleResponse(state, ctx, server, result, policy, rule); response != nil || err != nil {
 		return response, err
 	}
 

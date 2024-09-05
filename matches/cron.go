@@ -10,7 +10,10 @@ import (
 )
 
 type CronData struct {
-	Schedule []cron.Schedule
+	Entries []struct {
+		Expression string
+		Schedule   cron.Schedule
+	}
 }
 
 func ProcessCronData(value json.RawMessage) (interface{}, error) {
@@ -28,23 +31,29 @@ func ProcessCronData(value json.RawMessage) (interface{}, error) {
 			return nil, err
 		}
 
-		data.Schedule = append(data.Schedule, schedule)
+		data.Entries = append(data.Entries, struct {
+			Expression string
+			Schedule   cron.Schedule
+		}{Expression: expression, Schedule: schedule})
 	}
 
 	return data, nil
 }
 
-func MatchCron(state request.Request, ctx context.Context, data CronData) (bool, error) {
+func MatchCron(state request.Request, ctx context.Context, data CronData) (*MatchResult, error) {
 	now := time.Now()
 
-	for _, schedule := range data.Schedule {
-		nextTime := schedule.Next(now)
-		prevTime := schedule.Next(now.Add(-time.Minute))
+	for _, entry := range data.Entries {
+		nextTime := entry.Schedule.Next(now)
+		prevTime := entry.Schedule.Next(now.Add(-time.Minute))
 
 		if now.After(prevTime) && now.Before(nextTime) {
-			return true, nil
+			return &MatchResult{
+				Handled: true,
+				Data:    entry.Expression,
+			}, nil
 		}
 	}
 
-	return false, nil
+	return nil, nil
 }

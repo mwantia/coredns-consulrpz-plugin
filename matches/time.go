@@ -3,6 +3,7 @@ package matches
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/coredns/coredns/request"
@@ -47,7 +48,7 @@ func ProcessTimeData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchTime(state request.Request, ctx context.Context, data TimeData) (bool, error) {
+func MatchTime(state request.Request, ctx context.Context, data TimeData) (*MatchResult, error) {
 	now := time.Now()
 
 	for _, timerange := range data.TimeRanges {
@@ -61,9 +62,14 @@ func MatchTime(state request.Request, ctx context.Context, data TimeData) (bool,
 		}
 
 		if (now.After(start) || now.Equal(start)) && now.Before(end) {
-			return true, nil
+			return &MatchResult{
+				Handled: true,
+				Data: fmt.Sprintf("Start: '%s', End: '%s'",
+					timerange.Start.Format("2006-01-02 15:04:05"),
+					timerange.End.Format("2006-01-02 15:04:05")),
+			}, nil
 		}
 	}
 
-	return false, nil
+	return nil, nil
 }

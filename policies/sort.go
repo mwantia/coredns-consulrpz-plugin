@@ -98,6 +98,8 @@ func (response *RuleResponse) GetPriority() int {
 			return 5
 		case "record":
 			return 6
+		case "log":
+			return 7
 		}
 	}
 	return 1000

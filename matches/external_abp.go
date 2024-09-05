@@ -9,7 +9,7 @@ import (
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
 )
 
-func ParseAbpMatches(reader io.Reader, trie *data.OldTrie) error {
+func ParseAbpMatches(reader io.Reader, trie *data.Trie) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

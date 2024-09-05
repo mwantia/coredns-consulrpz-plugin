@@ -29,8 +29,11 @@ func ProcessQNameData(value json.RawMessage) (interface{}, error) {
 	}, nil
 }
 
-func MatchQName(state request.Request, ctx context.Context, data QNameData) (bool, error) {
+func MatchQName(state request.Request, ctx context.Context, data QNameData) (*MatchResult, error) {
 	name := state.Name()
 	ok := data.Trie.Search(name)
-	return ok, nil
+	return &MatchResult{
+		Handled: ok,
+		Data:    name,
+	}, nil
 }

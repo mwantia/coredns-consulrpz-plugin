@@ -34,20 +34,23 @@ func ProcessCidrData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchCidr(state request.Request, ctx context.Context, data CidrData) (bool, error) {
+func MatchCidr(state request.Request, ctx context.Context, data CidrData) (*MatchResult, error) {
 	ip := state.IP()
 	clientIP := net.ParseIP(ip)
 	if clientIP == nil {
-		return false, fmt.Errorf("unable to parse client IP '%s'", ip)
+		return nil, fmt.Errorf("unable to parse client IP '%s'", ip)
 	}
 
 	for _, network := range data.Networks {
 		logging.Log.Debugf("Checking cidr '%s' with client '%s'", network, clientIP)
 
 		if network.Contains(clientIP) {
-			return true, nil
+			return &MatchResult{
+				Handled: true,
+				Data:    network.Network(),
+			}, nil
 		}
 	}
 
-	return false, nil
+	return nil, nil
 }

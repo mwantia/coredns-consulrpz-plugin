@@ -41,18 +41,24 @@ func ProcessRegexData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchRegex(state request.Request, ctx context.Context, data RegexData) (bool, error) {
-
+func MatchRegex(state request.Request, ctx context.Context, data RegexData) (*MatchResult, error) {
 	qname := state.Name()
+
 	for _, entry := range data.Entries {
 		if entry.Pattern == qname {
-			return true, nil
+			return &MatchResult{
+				Handled: true,
+				Data:    entry.Pattern,
+			}, nil
 		}
 
 		if entry.Regex.MatchString(qname) {
-			return true, nil
+			return &MatchResult{
+				Handled: true,
+				Data:    entry.Pattern,
+			}, nil
 		}
 	}
 
-	return false, nil
+	return nil, nil
 }

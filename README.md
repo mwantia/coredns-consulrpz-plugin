@@ -292,21 +292,29 @@ The plugin supports the following action types:
    }
    ```
 
-6. `inaddr_any`: Returns a fixed DNS record to the address `0.0.0.0` or `::`
+6. `log`: Logs the received result in file
+   ```json
+   {
+     "type": "log",
+     "value": "path/filename.log"
+   }
+   ```
+
+7. `inaddr_any`: Returns a fixed DNS record to the address `0.0.0.0` or `::`
    ```json
    {
      "type": "inaddr_any"
    }
    ```
 
-7. `inaddr_loopback`: Returns a fixed DNS record to the address `127.0.0.1` or `::1`
+8. `inaddr_loopback`: Returns a fixed DNS record to the address `127.0.0.1` or `::1`
    ```json
    {
      "type": "inaddr_loopback"
    }
    ```
 
-8. `inaddr_broadcast`: Returns a fixed DNS record to the address `255.255.255.255`
+9. `inaddr_broadcast`: Returns a fixed DNS record to the address `255.255.255.255`
    ```json
    {
      "type": "inaddr_broadcast"

@@ -14,7 +14,7 @@ import (
 )
 
 type ExternalData struct {
-	Trie *data.OldTrie
+	Trie *data.Trie
 }
 
 func ProcessExternalData(value json.RawMessage) (interface{}, error) {
@@ -27,7 +27,7 @@ func ProcessExternalData(value json.RawMessage) (interface{}, error) {
 		return nil, err
 	}
 
-	trie := data.OldRootTrie()
+	trie := data.NewRootTrie()
 
 	for _, target := range targets {
 		// We skip targets that can't be resolved
@@ -66,10 +66,14 @@ func ProcessExternalData(value json.RawMessage) (interface{}, error) {
 	}, nil
 }
 
-func MatchExternal(state request.Request, ctx context.Context, data ExternalData) (bool, error) {
+func MatchExternal(state request.Request, ctx context.Context, data ExternalData) (*MatchResult, error) {
 	name := state.Name()
 	ok := data.Trie.Search(name)
-	return ok, nil
+
+	return &MatchResult{
+		Handled: ok,
+		Data:    name,
+	}, nil
 }
 
 func GetTargetReader(target string) (io.Reader, error) {

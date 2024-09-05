@@ -96,8 +96,8 @@ func (plug ConsulRpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, st
 	}
 
 	server := cmetrics.WithServer(ctx)
-	metrics.MetricRequestDurationSeconds(server, status, duration)
-	metrics.MetricQueryRequestsTotal(server, status, name, qtype)
+	metrics.MetricsRequestDurationSeconds(server, status, duration)
+	metrics.MetricsQueryRequests(server, status, name, qtype)
 
 	plug.SetMetadataQueryStatus(ctx, status)
 }

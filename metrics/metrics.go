@@ -16,7 +16,7 @@ var metricsRpzRequestDurationSeconds = prometheus.NewHistogramVec(prometheus.His
 	Buckets:   []float64{.001, .002, .005, .01, .02, .05, .1, .2, .5, 1},
 }, []string{"server", "status"})
 
-func MetricRequestDurationSeconds(server, status string, duration float64) {
+func MetricsRequestDurationSeconds(server, status string, duration float64) {
 	s := strings.ToUpper(status)
 	metricsRpzRequestDurationSeconds.WithLabelValues(server, s).Observe(duration)
 }
@@ -28,7 +28,7 @@ var metricsQueryRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Help:      "Count the amount of queries received as request by the plugin.",
 }, []string{"server", "status", "policy", "type"})
 
-func MetricQueryRequestsTotal(server, status, policy string, qtype uint16) {
+func MetricsQueryRequests(server, status, policy string, qtype uint16) {
 	t := dns.TypeToString[qtype]
 	s := strings.ToUpper(status)
 	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
@@ -48,14 +48,25 @@ func MetricPolicyExecutionTime(server, policy string, duration float64) {
 	metricsPolicyExecutionTime.WithLabelValues(server, p).Observe(duration)
 }
 
-var metricsTriggerMatchCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+var metricsPoliciesUpdatedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Namespace: plugin.Namespace,
 	Subsystem: MetricsSubsystem,
-	Name:      "trigger_match_total",
-	Help:      "Count of trigger matches per policy.",
-}, []string{"server", "policy", "trigger"})
+	Name:      "policies_updated_total",
+	Help:      "Count the amount of updates performed per policy.",
+}, []string{"policy"})
 
-func MetricTriggerMatchCount(server, policy, trigger string) {
+func MetricsPoliciesUpdated(policy string) {
 	p := strings.ReplaceAll(strings.ToLower(policy), " ", "_")
-	metricsTriggerMatchCount.WithLabelValues(server, p, trigger).Inc()
+	metricsPoliciesUpdatedTotal.WithLabelValues(p).Inc()
+}
+
+var metricsPolicyResponsesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Namespace: plugin.Namespace,
+	Subsystem: MetricsSubsystem,
+	Name:      "policy_responses_total",
+	Help:      "Count the amount of policy responses by type.",
+}, []string{"server", "type"})
+
+func MetricsPolicyResponses(server, rtype string) {
+	metricsPolicyResponsesTotal.WithLabelValues(server, rtype).Inc()
 }

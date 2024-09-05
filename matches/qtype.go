@@ -28,33 +28,54 @@ func ProcessQTypeData(value json.RawMessage) (interface{}, error) {
 	return data, nil
 }
 
-func MatchQType(state request.Request, ctx context.Context, data QTypeData) (bool, error) {
+func MatchQType(state request.Request, ctx context.Context, data QTypeData) (*MatchResult, error) {
 	qtype := state.QType()
 
 	for _, t := range data.Types {
 		switch qtype {
 		case dns.TypeA:
-			return t == "A", nil
+			return &MatchResult{
+				Handled: t == "A",
+				Data:    t,
+			}, nil
 
 		case dns.TypeAAAA:
-			return t == "AAAA", nil
+			return &MatchResult{
+				Handled: t == "AAAA",
+				Data:    t,
+			}, nil
 
 		case dns.TypeCNAME:
-			return t == "CNAME", nil
+			return &MatchResult{
+				Handled: t == "CNAME",
+				Data:    t,
+			}, nil
 
 		case dns.TypeHTTPS:
-			return t == "HTTPS", nil
+			return &MatchResult{
+				Handled: t == "HTTPS",
+				Data:    t,
+			}, nil
 
 		case dns.TypeTXT:
-			return t == "TXT", nil
+			return &MatchResult{
+				Handled: t == "TXT",
+				Data:    t,
+			}, nil
 
 		case dns.TypeSOA:
-			return t == "SOA", nil
+			return &MatchResult{
+				Handled: t == "SOA",
+				Data:    t,
+			}, nil
 
 		case dns.TypeNS:
-			return t == "NS", nil
+			return &MatchResult{
+				Handled: t == "NS",
+				Data:    t,
+			}, nil
 		}
 	}
 
-	return false, nil
+	return nil, nil
 }

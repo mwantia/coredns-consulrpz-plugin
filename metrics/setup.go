@@ -6,6 +6,7 @@ func Register() error {
 	prometheus.MustRegister(metricsRpzRequestDurationSeconds)
 	prometheus.MustRegister(metricsQueryRequestsTotal)
 	prometheus.MustRegister(metricsPolicyExecutionTime)
-	prometheus.MustRegister(metricsTriggerMatchCount)
+	prometheus.MustRegister(metricsPoliciesUpdatedTotal)
+	prometheus.MustRegister(metricsPolicyResponsesTotal)
 	return nil
 }

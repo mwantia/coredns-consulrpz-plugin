@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/mwantia/coredns-consulrpz-plugin/consul"
 	"github.com/mwantia/coredns-consulrpz-plugin/logging"
+	"github.com/mwantia/coredns-consulrpz-plugin/metrics"
 	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 	"github.com/rschone/corefile2struct/pkg/corefile"
 )
@@ -125,6 +126,7 @@ func UpdateNamedPolicies(p *ConsulRpzPlugin, policy *policies.Policy) error {
 				p.Policies[i].Hash = policy.Hash
 
 				logging.Log.Debugf("Policy '%s' updated", policy.Name)
+				metrics.MetricsPoliciesUpdated(policy.Name)
 			}
 
 			return nil

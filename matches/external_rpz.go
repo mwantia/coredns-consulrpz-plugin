@@ -8,7 +8,7 @@ import (
 	"github.com/mwantia/coredns-consulrpz-plugin/data"
 )
 
-func ParseRpzMatches(reader io.Reader, trie *data.OldTrie) error {
+func ParseRpzMatches(reader io.Reader, trie *data.Trie) error {
 	scanner := bufio.NewScanner(reader)
 
 	var names []string
