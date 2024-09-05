@@ -288,7 +288,7 @@ The plugin supports the following action types:
    ```json
    {
      "type": "extra",
-     "value": ["Blocked by rpz policy"]
+     "value": ["blocked by rpz policy"]
    }
    ```
 
@@ -296,7 +296,11 @@ The plugin supports the following action types:
    ```json
    {
      "type": "log",
-     "value": "path/filename.log"
+     "value": {
+       "path": "path/filename.log",
+       "as_json": false, // If set, ignores 'format' and prints the response as json
+       "format": "{{.Time}} :: {{.RemoteIP}} [{{.QType}}] {{.QName}}"
+     }
    }
    ```
 
@@ -321,7 +325,7 @@ The plugin supports the following action types:
    }
    ```
 
-Responses are handled in the following order: `deny`, `fallthrough`, `code`, `record`, `extra`, `inaddr_any`, `inaddr_loopback`, `inaddr_broadcast`.
+Responses are handled in the following order: `deny`, `fallthrough`, `code`, `record`, `extra`, `log`, `inaddr_any`, `inaddr_loopback`, `inaddr_broadcast`.
 
 ## Additional TXT
 
@@ -342,7 +346,7 @@ $ dig example.com
 ;example.com.       IN      A
 
 ;; ADDITIONAL SECTION:
-example.com. 300    IN      TXT     "Handled by policy - RPZ Rule Example"
+example.com. 300    IN      TXT     "blocked by rpz policy"
 
 ;; Query time: 40 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)
