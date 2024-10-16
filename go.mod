@@ -6,6 +6,7 @@ require (
 	github.com/coredns/caddy v1.1.1
 	github.com/miekg/dns v1.1.58
 	github.com/prometheus/client_golang v1.19.0
+	go.opentelemetry.io/otel/trace v1.31.0
 )
 
 require (
@@ -14,6 +15,8 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
+	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/pprof v0.0.0-20230817174616-7a8ec2ada47b // indirect
@@ -37,6 +40,7 @@ require (
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/quic-go/quic-go v0.42.0 // indirect
+	go.opentelemetry.io/otel/metric v1.31.0 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
@@ -57,4 +61,5 @@ require (
 	github.com/hashicorp/consul/api v1.29.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rschone/corefile2struct v0.0.0-20230614132413-d125d8407c3b
+	go.opentelemetry.io/otel v1.31.0
 )

@@ -19,7 +19,7 @@ type ConsulRpzConfig struct {
 	Address   string `cf:"address" default:"http://127.0.0.1:8500"`
 	Token     string `cf:"token"`
 	Watch     bool   `cf:"watch" default:"true"`
-	Execution string `cf:"execution" default:"parallel" check:"oneOf(sequence|parallel)"`
+	Execution string `cf:"execution" default:"sequence" check:"oneOf(sequence)"`
 }
 
 func CreatePlugin(c *caddy.Controller) (*ConsulRpzPlugin, error) {

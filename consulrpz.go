@@ -15,48 +15,70 @@ import (
 	"github.com/mwantia/coredns-consulrpz-plugin/policies"
 	"github.com/mwantia/coredns-consulrpz-plugin/responses"
 	"github.com/mwantia/coredns-consulrpz-plugin/runtime"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (plug ConsulRpzPlugin) Name() string { return "consulrpz" }
 
-func (plug ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWriter, msg *dns.Msg) (int, error) {
+func (p ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWriter, msg *dns.Msg) (int, error) {
 	state := request.Request{W: writer, Req: msg.Copy()}
-	qtype := state.QType()
-	qname := dns.Fqdn(state.Name())
 
+	tracer := otel.Tracer("coredns.otel")
+	ctx, span := tracer.Start(ctx, p.Name(),
+		trace.WithAttributes(
+			attribute.String("plugin.name", p.Name()),
+		),
+		trace.WithSpanKind(trace.SpanKindServer),
+	)
+	defer span.End()
+
+	status, err := p.ServeDnsRequest(ctx, state)
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return status, err
+}
+
+func (p ConsulRpzPlugin) ServeDnsRequest(ctx context.Context, state request.Request) (int, error) {
 	var policy *policies.Policy
 	var response *responses.PolicyResponse
 	var err error
 
 	start := time.Now()
-	execution := strings.ToLower(plug.Cfg.Execution)
+	execution := strings.ToLower(p.Cfg.Execution)
 	switch execution {
 	case "parallel":
-		policy, response, err = runtime.HandlePoliciesParallel(state, ctx, plug.Policies)
+		// policy, response, err = runtime.HandlePoliciesParallel(state, ctx, p.Policies)
 	case "sequence":
-		policy, response, err = runtime.HandlePoliciesSequence(state, ctx, plug.Policies)
+		policy, response, err = runtime.HandlePoliciesSequence(state, ctx, p.Policies)
 	}
 	duration := time.Since(start).Seconds()
 
 	if err != nil && !errors.Is(err, context.Canceled) {
-		logging.Log.Errorf("Unable to handle request for '%s': %s", qname, err)
+		logging.Log.Errorf("Unable to handle request for '%s': %s", dns.Fqdn(state.Name()), err)
 
-		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusError, duration, policy)
+		p.SetQueryStatus(ctx, state.QType(), metrics.QueryStatusError, duration, policy)
 		return dns.RcodeServerFailure, err
 	}
 
 	if policy == nil || response == nil {
-		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusNoMatch, duration, policy)
-		return plugin.NextOrFailure(plug.Name(), plug.Next, ctx, writer, state.Req)
+		p.SetQueryStatus(ctx, state.QType(), metrics.QueryStatusNoMatch, duration, policy)
+		return p.HandleNextOrFailure(ctx, state)
 	}
 
 	if response.Fallthrough {
-		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusFallthrough, duration, policy)
-		return plugin.NextOrFailure(plug.Name(), plug.Next, ctx, writer, state.Req)
+		p.SetQueryStatus(ctx, state.QType(), metrics.QueryStatusFallthrough, duration, policy)
+		return p.HandleNextOrFailure(ctx, state)
 	}
 
 	if response.Deny {
-		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusDeny, duration, policy)
+		p.SetQueryStatus(ctx, state.QType(), metrics.QueryStatusDeny, duration, policy)
 		return HandleDenyPolicy(state, *policy)
 	}
 
@@ -78,15 +100,36 @@ func (plug ConsulRpzPlugin) ServeDNS(ctx context.Context, writer dns.ResponseWri
 		}
 	}
 
-	if err := writer.WriteMsg(responsemsg); err != nil {
-		logging.Log.Errorf("Unable to send response for '%s': %s", qname, err)
+	if err := state.W.WriteMsg(responsemsg); err != nil {
+		logging.Log.Errorf("Unable to send response for '%s': %s", dns.Fqdn(state.Name()), err)
 
-		plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusError, duration, policy)
+		p.SetQueryStatus(ctx, state.QType(), metrics.QueryStatusError, duration, policy)
 		return dns.RcodeServerFailure, err
 	}
 
-	plug.SetQueryStatus(ctx, qtype, metrics.QueryStatusSuccess, duration, policy)
+	p.SetQueryStatus(ctx, state.QType(), metrics.QueryStatusSuccess, duration, policy)
 	return responsemsg.Rcode, nil
+}
+
+func (p ConsulRpzPlugin) HandleNextOrFailure(ctx context.Context, state request.Request) (int, error) {
+	tracer := otel.Tracer("coredns.otel")
+	ctx, span := tracer.Start(ctx, "NextOrFailure",
+		trace.WithAttributes(
+			attribute.String("plugin.name", p.Name()),
+			attribute.String("plugin.next", p.Next.Name()),
+		),
+		trace.WithSpanKind(trace.SpanKindInternal),
+	)
+	defer span.End()
+
+	status, err := plugin.NextOrFailure(p.Name(), p.Next, ctx, state.W, state.Req)
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	return status, err
 }
 
 func (plug ConsulRpzPlugin) SetQueryStatus(ctx context.Context, qtype uint16, status string, duration float64, policy *policies.Policy) {

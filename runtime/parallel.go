@@ -40,7 +40,7 @@ func HandlePoliciesParallel(state request.Request, ctx context.Context, _policie
 			defer wg.Done()
 
 			start := time.Now()
-			response, err := HandlePolicyResponse(state, ctx, server, policy)
+			response, err := HandlePolicyResponse(ctx, state, server, policy)
 			duration := time.Since(start).Seconds()
 
 			metrics.MetricPolicyExecutionTime(server, policy.Name, duration)
